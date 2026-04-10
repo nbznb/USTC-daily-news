@@ -51,10 +51,10 @@ cd scripts && npm run validate-sources
 ## OpenClaw 安装
 
 1. 将本仓库克隆到 OpenClaw 工作目录。
-2. 执行 `cd scripts && npm install` 安装依赖。
-3. 创建 `~/.ustc-dailynews/config.json`，至少设置 `"platform": "openclaw"`，并按需填写 `language`、`frequency`、`selectedDepartments`。
-4. 如需 Telegram 或邮件投递，再创建 `~/.ustc-dailynews/.env` 保存密钥。
-5. 执行 `cd scripts && npm run prepare-digest`。当前会优先读取本地 feed；若本地缺失，会先尝试本地 `generate-feed`，失败后才回退到 GitHub feed 快照。
+2. 执行 `./install.sh`，自动安装 `scripts/` 依赖，并创建默认的 `~/.ustc-dailynews/config.json`。
+3. 检查并按需修改 `~/.ustc-dailynews/config.json`，例如 `language`、`frequency`、`selectedDepartments` 和投递方式。
+4. 如需 Telegram 或邮件投递，请把相应密钥写入 `~/.ustc-dailynews/.env`。
+5. 执行 `cd scripts && npm run prepare-digest`。现在每次运行都会优先尝试本地刷新 `generate-feed`，若刷新失败，再回退到已有本地 feed 或 GitHub feed 快照。
 
 示例配置：
 

@@ -61,6 +61,28 @@ async function loadLocalJSON(localPath) {
   return null;
 }
 
+async function loadLocalFeeds(localFeedPaths) {
+  const [
+    official,
+    departments,
+    jobs,
+    tech,
+    papers
+  ] = await Promise.all([
+    loadLocalJSON(localFeedPaths.official),
+    loadLocalJSON(localFeedPaths.departments),
+    loadLocalJSON(localFeedPaths.jobs),
+    loadLocalJSON(localFeedPaths.tech),
+    loadLocalJSON(localFeedPaths.papers)
+  ]);
+
+  return { official, departments, jobs, tech, papers };
+}
+
+function hasMissingFeeds(feeds) {
+  return Object.values(feeds).some(feed => !feed);
+}
+
 async function runLocalGenerate(scriptDir) {
   try {
     await execFileAsync(process.execPath, [join(scriptDir, 'generate-feed.js')], {
@@ -144,40 +166,24 @@ async function main() {
     papers: join(localRootDir, 'feed-papers.json')
   };
 
-  let [
-    feedOfficial,
-    feedDepartments,
-    feedJobs,
-    feedTech,
-    feedPapers
-  ] = await Promise.all([
-    loadLocalJSON(localFeedPaths.official),
-    loadLocalJSON(localFeedPaths.departments),
-    loadLocalJSON(localFeedPaths.jobs),
-    loadLocalJSON(localFeedPaths.tech),
-    loadLocalJSON(localFeedPaths.papers)
-  ]);
+  let localFeeds = await loadLocalFeeds(localFeedPaths);
 
-  if (!feedOfficial || !feedDepartments || !feedJobs || !feedTech || !feedPapers) {
-    const generatedLocally = await runLocalGenerate(scriptDir);
-    if (generatedLocally) {
-      [
-        feedOfficial,
-        feedDepartments,
-        feedJobs,
-        feedTech,
-        feedPapers
-      ] = await Promise.all([
-        loadLocalJSON(localFeedPaths.official),
-        loadLocalJSON(localFeedPaths.departments),
-        loadLocalJSON(localFeedPaths.jobs),
-        loadLocalJSON(localFeedPaths.tech),
-        loadLocalJSON(localFeedPaths.papers)
-      ]);
-    } else {
-      errors.push('Local feed generation failed, falling back to GitHub feeds where available');
-    }
+  const generatedLocally = await runLocalGenerate(scriptDir);
+  if (generatedLocally) {
+    localFeeds = await loadLocalFeeds(localFeedPaths);
+  } else if (hasMissingFeeds(localFeeds)) {
+    errors.push('Local feed generation failed, falling back to GitHub feeds where available');
+  } else {
+    errors.push('Local feed refresh failed, falling back to cached or remote feeds where available');
   }
+
+  let {
+    official: feedOfficial,
+    departments: feedDepartments,
+    jobs: feedJobs,
+    tech: feedTech,
+    papers: feedPapers
+  } = localFeeds;
 
   [
     feedOfficial,

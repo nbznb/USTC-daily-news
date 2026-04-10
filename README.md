@@ -51,10 +51,10 @@ The command writes `source-validation-report.json` in the project root.
 ## OpenClaw Installation
 
 1. Clone this repository into your OpenClaw workspace.
-2. Run `cd scripts && npm install` to install dependencies.
-3. Create `~/.ustc-dailynews/config.json` and set `"platform": "openclaw"` plus your preferred `language`, `frequency`, and `selectedDepartments`.
-4. If you want Telegram or email delivery, create `~/.ustc-dailynews/.env` and add the required secrets.
-5. Run `cd scripts && npm run prepare-digest`. It now prefers local feed files, attempts a local `generate-feed` refresh when feeds are missing, and only falls back to GitHub snapshots if local generation fails.
+2. Run `./install.sh` to install `scripts/` dependencies and create a default `~/.ustc-dailynews/config.json`.
+3. Review `~/.ustc-dailynews/config.json` and adjust `language`, `frequency`, `selectedDepartments`, and delivery settings as needed.
+4. If you want Telegram or email delivery, add the required secrets to `~/.ustc-dailynews/.env`.
+5. Run `cd scripts && npm run prepare-digest`. Each run now attempts a fresh local `generate-feed` refresh first, then falls back to cached local files or GitHub snapshots if refresh fails.
 
 Example config:
 
