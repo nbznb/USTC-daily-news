@@ -3,13 +3,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-USER_DIR="${HOME}/.ustc-dailynews"
+OPENCLAW_DIR="${HOME}/.openclaw"
+USER_DIR="${OPENCLAW_DIR}/ustc-daily-news"
+LEGACY_USER_DIR="${HOME}/.ustc-dailynews"
 APP_DIR="${USER_DIR}/app"
 BIN_DIR="${USER_DIR}/bin"
 CONFIG_PATH="${USER_DIR}/config.json"
 ENV_PATH="${USER_DIR}/.env"
 WRAPPER_PATH="${BIN_DIR}/ustc-daily-news"
-OPENCLAW_DIR="${HOME}/.openclaw"
 OPENCLAW_SKILLS_DIR="${OPENCLAW_DIR}/skills"
 SKILL_NAME="ustc-daily-news"
 INSTALLED_SKILL_DIR="${OPENCLAW_SKILLS_DIR}/${SKILL_NAME}"
@@ -17,6 +18,14 @@ INSTALLED_SKILL_DIR="${OPENCLAW_SKILLS_DIR}/${SKILL_NAME}"
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "Error: '$1' is required but was not found in PATH." >&2
+    exit 1
+  fi
+}
+
+require_path() {
+  if [ ! -e "$1" ]; then
+    echo "Error: required path is missing: $1" >&2
+    echo "This checkout is incomplete. Run install.sh from a full repository or a packaged release that contains config/, prompts/, scripts/, and skills/." >&2
     exit 1
   fi
 }
@@ -30,6 +39,18 @@ if [ "${NODE_MAJOR}" -lt 20 ]; then
   echo "Error: Node.js 20+ is required. Current version: $(node -v)" >&2
   exit 1
 fi
+
+require_path "${SCRIPT_DIR}/config/default-sources.json"
+require_path "${SCRIPT_DIR}/config/config-schema.json"
+require_path "${SCRIPT_DIR}/prompts/digest-intro.md"
+require_path "${SCRIPT_DIR}/prompts/summarize-announcements.md"
+require_path "${SCRIPT_DIR}/prompts/summarize-tech-news.md"
+require_path "${SCRIPT_DIR}/prompts/translate.md"
+require_path "${SCRIPT_DIR}/scripts/package.json"
+require_path "${SCRIPT_DIR}/scripts/generate-feed.js"
+require_path "${SCRIPT_DIR}/scripts/prepare-digest.js"
+require_path "${SCRIPT_DIR}/scripts/deliver.js"
+require_path "${SCRIPT_DIR}/skills/${SKILL_NAME}/SKILL.md"
 
 rm -rf "${APP_DIR}" "${INSTALLED_SKILL_DIR}"
 mkdir -p "${USER_DIR}" "${USER_DIR}/prompts" "${APP_DIR}" "${BIN_DIR}" "${OPENCLAW_SKILLS_DIR}"
@@ -101,8 +122,16 @@ chmod +x "${WRAPPER_PATH}"
 
 cp -R "${APP_DIR}/skills/${SKILL_NAME}" "${INSTALLED_SKILL_DIR}"
 
+if [ -d "${LEGACY_USER_DIR}/prompts" ] && [ -z "$(find "${USER_DIR}/prompts" -mindepth 1 -print -quit 2>/dev/null)" ]; then
+  cp -R "${LEGACY_USER_DIR}/prompts/." "${USER_DIR}/prompts/"
+fi
+
 if [ ! -f "${CONFIG_PATH}" ]; then
-  cat > "${CONFIG_PATH}" <<'EOF'
+  if [ -f "${LEGACY_USER_DIR}/config.json" ]; then
+    cp "${LEGACY_USER_DIR}/config.json" "${CONFIG_PATH}"
+    echo "Migrated existing config to ${CONFIG_PATH}"
+  else
+    cat > "${CONFIG_PATH}" <<'EOF'
 {
   "platform": "openclaw",
   "language": "zh",
@@ -116,14 +145,20 @@ if [ ! -f "${CONFIG_PATH}" ]; then
   "onboardingComplete": false
 }
 EOF
-  echo "Created default config at ${CONFIG_PATH}"
+    echo "Created default config at ${CONFIG_PATH}"
+  fi
 else
   echo "Keeping existing config at ${CONFIG_PATH}"
 fi
 
 if [ ! -f "${ENV_PATH}" ]; then
-  : > "${ENV_PATH}"
-  echo "Created empty env file at ${ENV_PATH}"
+  if [ -f "${LEGACY_USER_DIR}/.env" ]; then
+    cp "${LEGACY_USER_DIR}/.env" "${ENV_PATH}"
+    echo "Migrated existing env file to ${ENV_PATH}"
+  else
+    : > "${ENV_PATH}"
+    echo "Created empty env file at ${ENV_PATH}"
+  fi
 fi
 
 "${WRAPPER_PATH}" help >/dev/null

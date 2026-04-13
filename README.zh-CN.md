@@ -27,7 +27,7 @@
 
 ## 院系选择
 
-在 `~/.ustc-dailynews/config.json` 中配置：
+在 `~/.openclaw/ustc-daily-news/config.json` 中配置：
 
 ```json
 {
@@ -60,22 +60,12 @@ cd scripts && npm run package-release -- --name v1.0.0
 ## OpenClaw 安装
 
 1. 执行 `./install.sh`。
-2. 安装脚本会把运行时复制到 `~/.ustc-dailynews/app`，把 OpenClaw skill 安装到 `~/.openclaw/skills/ustc-daily-news`，创建默认的 `~/.ustc-dailynews/config.json`，并安装命令 `~/.ustc-dailynews/bin/ustc-daily-news`。
+2. 安装脚本会把运行时复制到 `~/.openclaw/ustc-daily-news/app`，把 OpenClaw skill 安装到 `~/.openclaw/skills/ustc-daily-news`，创建默认的 `~/.openclaw/ustc-daily-news/config.json`，并安装命令 `~/.openclaw/ustc-daily-news/bin/ustc-daily-news`。
 3. 用 `openclaw skills info ustc-daily-news` 确认 OpenClaw 已识别该 skill。
-4. 检查并按需修改 `~/.ustc-dailynews/config.json`，例如 `language`、`frequency`、`selectedDepartments` 和投递方式。
-5. 如需 Telegram 或邮件投递，请把相应密钥写入 `~/.ustc-dailynews/.env`。
-6. 执行 `~/.ustc-dailynews/bin/ustc-daily-news prepare-digest`。现在每次运行都会优先尝试本地刷新 `generate-feed`，若刷新失败，再回退到已有本地 feed 或 GitHub feed 快照。
+4. 检查并按需修改 `~/.openclaw/ustc-daily-news/config.json`，例如 `language`、`frequency`、`selectedDepartments` 和投递方式。
+5. 如需 Telegram 或邮件投递，请把相应密钥写入 `~/.openclaw/ustc-daily-news/.env`。
+6. 执行 `~/.openclaw/ustc-daily-news/bin/ustc-daily-news prepare-digest`。现在每次运行都会优先尝试本地刷新 `generate-feed`，若刷新失败，再回退到已有本地 feed 或 GitHub feed 快照。
 
-示例配置：
-
-```json
-{
-  "platform": "openclaw",
-  "language": "zh",
-  "frequency": "daily",
-  "selectedDepartments": ["少年班学院"]
-}
-```
 
 ## 系统要求
 

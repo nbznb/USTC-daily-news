@@ -27,7 +27,7 @@ A daily or weekly digest with:
 
 ## Department Selection
 
-Configure selected departments in `~/.ustc-dailynews/config.json`:
+Configure selected departments in `~/.openclaw/ustc-daily-news/config.json`:
 
 ```json
 {
@@ -62,11 +62,67 @@ The command creates `versions/<name>/` in the project root and excludes `.git`, 
 ## OpenClaw Installation
 
 1. Run `./install.sh`.
-2. The installer copies the runtime into `~/.ustc-dailynews/app`, installs the OpenClaw skill into `~/.openclaw/skills/ustc-daily-news`, creates `~/.ustc-dailynews/config.json`, and installs the command `~/.ustc-dailynews/bin/ustc-daily-news`.
+2. The installer copies the runtime into `~/.openclaw/ustc-daily-news/app`, installs the OpenClaw skill into `~/.openclaw/skills/ustc-daily-news`, creates `~/.openclaw/ustc-daily-news/config.json`, and installs the command `~/.openclaw/ustc-daily-news/bin/ustc-daily-news`.
 3. Verify OpenClaw can see the skill with `openclaw skills info ustc-daily-news`.
-4. Review `~/.ustc-dailynews/config.json` and adjust `language`, `frequency`, `selectedDepartments`, and delivery settings as needed.
-5. If you want Telegram or email delivery, add the required secrets to `~/.ustc-dailynews/.env`.
-6. Run `~/.ustc-dailynews/bin/ustc-daily-news prepare-digest`. Each run attempts a fresh local `generate-feed` refresh first, then falls back to cached local files or GitHub snapshots if refresh fails.
+4. Review `~/.openclaw/ustc-daily-news/config.json` and adjust `language`, `frequency`, `selectedDepartments`, and delivery settings as needed.
+5. If you want Telegram or email delivery, add the required secrets to `~/.openclaw/ustc-daily-news/.env`.
+6. Run `~/.openclaw/ustc-daily-news/bin/ustc-daily-news prepare-digest`. Each run attempts a fresh local `generate-feed` refresh first, then falls back to cached local files or GitHub snapshots if refresh fails.
+
+## Full Bash Setup
+
+Minimal end-to-end setup with in-chat / stdout delivery:
+
+```bash
+./install.sh
+
+cat > ~/.openclaw/ustc-daily-news/config.json <<'EOF'
+{
+  "platform": "openclaw",
+  "language": "zh",
+  "timezone": "Asia/Shanghai",
+  "frequency": "daily",
+  "deliveryTime": "08:00",
+  "selectedDepartments": ["少年班学院"],
+  "delivery": {
+    "method": "stdout"
+  },
+  "onboardingComplete": true
+}
+EOF
+
+: > ~/.openclaw/ustc-daily-news/.env
+
+openclaw skills info ustc-daily-news
+~/.openclaw/ustc-daily-news/bin/ustc-daily-news help
+~/.openclaw/ustc-daily-news/bin/ustc-daily-news prepare-digest
+```
+
+If you want Telegram or email delivery, replace the config and `.env` with your own values:
+
+```bash
+cat > ~/.openclaw/ustc-daily-news/config.json <<'EOF'
+{
+  "platform": "openclaw",
+  "language": "bilingual",
+  "timezone": "Asia/Shanghai",
+  "frequency": "weekly",
+  "weeklyDay": "friday",
+  "deliveryTime": "09:30",
+  "selectedDepartments": ["少年班学院", "计算机科学与技术学院"],
+  "delivery": {
+    "method": "telegram",
+    "chatId": "YOUR_TELEGRAM_CHAT_ID"
+  },
+  "onboardingComplete": true
+}
+EOF
+
+cat > ~/.openclaw/ustc-daily-news/.env <<'EOF'
+TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
+# For email delivery instead, change delivery.method to "email" and use:
+# RESEND_API_KEY=YOUR_RESEND_API_KEY
+EOF
+```
 
 Example config:
 
