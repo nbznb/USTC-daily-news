@@ -24,12 +24,6 @@ https://www.job.ustc.edu.cn/example
 
 TECH NEWS
 
-MIT Technology Review: New wave of efficient AI systems targets lower-cost deployment.
-What matters: the center of competition is shifting from raw scale to deployment efficiency and task-specific usefulness.
-https://www.technologyreview.com/example
-
-RESEARCH PAPERS
-
 QbitAI: A new method improves planning quality in long-horizon agent tasks.
 What matters: the paper claims better multi-step decision quality with lower compute overhead than common baselines.
 https://www.qbitai.com/example

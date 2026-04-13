@@ -1,0 +1,29 @@
+{
+  "name": "test-release",
+  "createdAt": "2026-04-13T05:58:18.343Z",
+  "sourceRoot": "/home/lindu/USTC-daily-news",
+  "includedRootFiles": [
+    "README.md",
+    "README.zh-CN.md",
+    "install.sh"
+  ],
+  "includedRootDirs": [
+    "config",
+    "examples",
+    "prompts",
+    "scripts"
+  ],
+  "excludedNames": [
+    ".git",
+    "node_modules",
+    "versions",
+    ".DS_Store",
+    "Thumbs.db",
+    "feed-official.json",
+    "feed-departments.json",
+    "feed-jobs.json",
+    "feed-tech.json",
+    "source-validation-report.json",
+    "state-feed.json"
+  ]
+}

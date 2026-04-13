@@ -17,15 +17,13 @@ const FEED_URLS = {
   official: `${REMOTE_BASE}/feed-official.json`,
   departments: `${REMOTE_BASE}/feed-departments.json`,
   jobs: `${REMOTE_BASE}/feed-jobs.json`,
-  tech: `${REMOTE_BASE}/feed-tech.json`,
-  papers: `${REMOTE_BASE}/feed-papers.json`
+  tech: `${REMOTE_BASE}/feed-tech.json`
 };
 
 const PROMPTS_BASE = `${REMOTE_BASE}/prompts`;
 const PROMPT_FILES = [
   'summarize-announcements.md',
   'summarize-tech-news.md',
-  'summarize-papers.md',
   'digest-intro.md',
   'translate.md'
 ];
@@ -66,17 +64,15 @@ async function loadLocalFeeds(localFeedPaths) {
     official,
     departments,
     jobs,
-    tech,
-    papers
+    tech
   ] = await Promise.all([
     loadLocalJSON(localFeedPaths.official),
     loadLocalJSON(localFeedPaths.departments),
     loadLocalJSON(localFeedPaths.jobs),
-    loadLocalJSON(localFeedPaths.tech),
-    loadLocalJSON(localFeedPaths.papers)
+    loadLocalJSON(localFeedPaths.tech)
   ]);
 
-  return { official, departments, jobs, tech, papers };
+  return { official, departments, jobs, tech };
 }
 
 function hasMissingFeeds(feeds) {
@@ -162,8 +158,7 @@ async function main() {
     official: join(localRootDir, 'feed-official.json'),
     departments: join(localRootDir, 'feed-departments.json'),
     jobs: join(localRootDir, 'feed-jobs.json'),
-    tech: join(localRootDir, 'feed-tech.json'),
-    papers: join(localRootDir, 'feed-papers.json')
+    tech: join(localRootDir, 'feed-tech.json')
   };
 
   let localFeeds = await loadLocalFeeds(localFeedPaths);
@@ -181,29 +176,25 @@ async function main() {
     official: feedOfficial,
     departments: feedDepartments,
     jobs: feedJobs,
-    tech: feedTech,
-    papers: feedPapers
+    tech: feedTech
   } = localFeeds;
 
   [
     feedOfficial,
     feedDepartments,
     feedJobs,
-    feedTech,
-    feedPapers
+    feedTech
   ] = await Promise.all([
     feedOfficial ?? loadFeedWithFallback(FEED_URLS.official, localFeedPaths.official),
     feedDepartments ?? loadFeedWithFallback(FEED_URLS.departments, localFeedPaths.departments),
     feedJobs ?? loadFeedWithFallback(FEED_URLS.jobs, localFeedPaths.jobs),
-    feedTech ?? loadFeedWithFallback(FEED_URLS.tech, localFeedPaths.tech),
-    feedPapers ?? loadFeedWithFallback(FEED_URLS.papers, localFeedPaths.papers)
+    feedTech ?? loadFeedWithFallback(FEED_URLS.tech, localFeedPaths.tech)
   ]);
 
   if (!feedOfficial) errors.push('Could not fetch official feed');
   if (!feedDepartments) errors.push('Could not fetch departments feed');
   if (!feedJobs) errors.push('Could not fetch jobs feed');
   if (!feedTech) errors.push('Could not fetch tech feed');
-  if (!feedPapers) errors.push('Could not fetch paper feed');
 
   const prompts = {};
   for (const filename of PROMPT_FILES) {
@@ -227,8 +218,7 @@ async function main() {
     feedOfficial?.generatedAt,
     feedDepartments?.generatedAt,
     feedJobs?.generatedAt,
-    feedTech?.generatedAt,
-    feedPapers?.generatedAt
+    feedTech?.generatedAt
   ].filter(Boolean).sort();
 
   const output = {
@@ -248,13 +238,11 @@ async function main() {
     departments,
     jobs: feedJobs?.jobs || [],
     tech: feedTech?.tech || [],
-    papers: feedPapers?.papers || [],
     stats: {
       officialItems: feedOfficial?.official?.length || 0,
       departmentItems: departments.length,
       jobItems: feedJobs?.jobs?.length || 0,
       techItems: feedTech?.tech?.length || 0,
-      paperItems: feedPapers?.papers?.length || 0,
       feedGeneratedAt: generatedCandidates.at(-1) || null
     },
     prompts,

@@ -1,6 +1,6 @@
 # USTC Daily News
 
-An AI-powered digest project that tracks USTC official updates, department notices, campus job information, selected technology news, and research-paper highlights, then turns them into concise summaries.
+An AI-powered digest project that tracks USTC official updates, department notices, campus job information, and selected technology or research highlights, then turns them into concise summaries.
 
 ## What You Get
 
@@ -9,8 +9,7 @@ A daily or weekly digest with:
 - USTC official news and notices
 - Selected department updates from chosen schools
 - Campus job and recruitment information
-- Selected technology news from public feeds
-- Research paper highlights from public paper feeds
+- Selected technology and research updates from public feeds
 - Links to all original sources
 - English, Chinese, or bilingual output
 
@@ -19,9 +18,9 @@ A daily or weekly digest with:
 - `config/default-sources.json` defines all tracked sources, including department sites and the job center
 - `config/config-schema.json` defines user config, including `selectedDepartments`
 - `scripts/generate-feed.js` fetches sources, scores candidates, writes feeds, and can emit a validation report
-- `scripts/prepare-digest.js` loads feeds, filters department items by config, and bundles prompts for the LLM
+- `scripts/prepare-digest.js` loads feeds, filters department items by config, and bundles prompts for the LLM; technology and research items are both routed through `tech`
 - `scripts/deliver.js` delivers the final digest to stdout, Telegram, or email
-- `prompts/` controls summary style and section order
+- `prompts/` controls summary style and section order, including the unified summary style for items inside `tech`
 - `.github/workflows/generate-feed.yml` refreshes feeds on schedule
 
 ## Department Selection
@@ -47,6 +46,16 @@ cd scripts && npm run validate-sources
 ```
 
 The command writes `source-validation-report.json` in the project root.
+
+## Release Packaging
+
+Create a clean release folder with only the core project files:
+
+```bash
+cd scripts && npm run package-release -- --name v1.0.0
+```
+
+The command creates `versions/<name>/` in the project root and excludes `.git`, `scripts/node_modules`, generated feeds, `state-feed.json`, `source-validation-report.json`, and common temporary files.
 
 ## OpenClaw Installation
 

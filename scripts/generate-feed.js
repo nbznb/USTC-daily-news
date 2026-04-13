@@ -16,8 +16,7 @@ const CATEGORY_DEFS = [
   { key: 'official', file: 'feed-official.json', statsKey: 'officialItems' },
   { key: 'departments', file: 'feed-departments.json', statsKey: 'departmentItems' },
   { key: 'jobs', file: 'feed-jobs.json', statsKey: 'jobItems' },
-  { key: 'tech', file: 'feed-tech.json', statsKey: 'techItems' },
-  { key: 'papers', file: 'feed-papers.json', statsKey: 'paperItems' }
+  { key: 'tech', file: 'feed-tech.json', statsKey: 'techItems' }
 ];
 
 const DEFAULT_SECTION_KEYWORDS = [
@@ -370,8 +369,11 @@ function extractGenericArticle(html, source) {
       ]);
 
   const contentHtml = extractFirst(html, [
-    /<div[^>]+class="[^"]*(?:v_news_content|wp_articlecontent|entry-content|post-content|article-content|content-main|news-content|detail-content|detail_content|detail-txt|Article_Content|article-detail|wp_entry)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
-    /<div[^>]+id="[^"]*(?:content|vsb_content|article|zoom|zoomcon|zoomCon)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+    /<div[^>]+class=(?:"[^"]*wp_articlecontent[^"]*"|'[^']*wp_articlecontent[^']*')[^>]*>([\s\S]*?)<\/div>/i,
+    /<div[^>]+class=(?:"[^"]*(?:v_news_content|entry-content|post-content|content-main|news-content|detail-content|detail_content|detail-txt|Article_Content|article-detail|wp_entry|article-content-box)[^"]*"|'[^']*(?:v_news_content|entry-content|post-content|content-main|news-content|detail-content|detail_content|detail-txt|Article_Content|article-detail|wp_entry|article-content-box)[^']*')[^>]*>([\s\S]*?)<\/div>/i,
+    /<div[^>]+class=(?:"[^"]*(?:read|news_text|Content|article-content)[^"]*"|'[^']*(?:read|news_text|Content|article-content)[^']*')[^>]*>([\s\S]*?)<\/div>/i,
+    /<div[^>]+id=(?:"[^"]*(?:content|vsb_content|article|zoom|zoomcon|zoomCon)[^"]*"|'[^']*(?:content|vsb_content|article|zoom|zoomcon|zoomCon)[^']*')[^>]*>([\s\S]*?)<\/div>/i,
+    /<article[^>]+class=(?:"[^"]*SinglePage[^"]*"|'[^']*SinglePage[^']*')[^>]*>([\s\S]*?)<\/article>/i,
     /<article[^>]*>([\s\S]*?)<\/article>/i,
     /<body[^>]*>([\s\S]*?)<\/body>/i
   ]);
@@ -379,6 +381,12 @@ function extractGenericArticle(html, source) {
   const metaDescription = stripTags(extractFirst(html, [
     /<meta[^>]+name="description"[^>]+content="([^"]+)"/i,
     /<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i
+  ]));
+  const attachmentTitle = stripTags(extractFirst(html, [
+    /sudyfile-attr="[^"]*'title':'([^']+)'[^"]*"/i,
+    /sudyfile-attr='[^']*"title":"([^"]+)"[^']*'/i,
+    /pdfsrc="[^"]+\/([^"/]+\.pdf)"/i,
+    /src="[^"]+\/([^"/]+\.(?:png|jpg|jpeg))"/i
   ]));
 
   let content = stripTags(contentHtml)
@@ -391,6 +399,10 @@ function extractGenericArticle(html, source) {
 
   if (content.length < 80 && metaDescription) {
     content = metaDescription;
+  }
+
+  if (content.length < 80 && attachmentTitle) {
+    content = `该页面正文以附件形式发布，附件标题：${attachmentTitle}。页面标题：${title}。请打开原始链接查看附件详情。`;
   }
 
   return { title, publishedAt, content, sourceName: source.name };

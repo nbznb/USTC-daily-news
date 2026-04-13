@@ -482,20 +482,8 @@
   ],
   "tech": [
     {
-      "name": "MIT Technology Review",
-      "category": "tech",
-      "type": "rss",
-      "feedUrl": "https://www.technologyreview.com/feed/",
-      "siteUrl": "https://www.technologyreview.com",
-      "lookbackHours": 72,
-      "maxItems": 6,
-      "contentMode": "summary"
-    }
-  ],
-  "papers": [
-    {
       "name": "QbitAI",
-      "category": "papers",
+      "category": "tech",
       "type": "rss",
       "feedUrl": "https://www.qbitai.com/feed",
       "siteUrl": "https://www.qbitai.com",

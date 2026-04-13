@@ -7,7 +7,8 @@
     "generate-feed": "node generate-feed.js",
     "generate-feed:report": "node generate-feed.js --report ../source-validation-report.json",
     "validate-sources": "node generate-feed.js --validate --report ../source-validation-report.json",
-    "prepare-digest": "node prepare-digest.js"
+    "prepare-digest": "node prepare-digest.js",
+    "package-release": "node package-release.js"
   },
   "dependencies": {
     "dotenv": "^16.4.0",
