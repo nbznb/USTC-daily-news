@@ -12,7 +12,7 @@ const USER_DIR = join(homedir(), '.ustc-dailynews');
 const CONFIG_PATH = join(USER_DIR, 'config.json');
 const execFileAsync = promisify(execFile);
 
-const REMOTE_BASE = 'https://raw.githubusercontent.com/your-org/USTC-dailynews/main';
+const REMOTE_BASE = 'https://raw.githubusercontent.com/nbznb/USTC-daily-news/main';
 const FEED_URLS = {
   official: `${REMOTE_BASE}/feed-official.json`,
   departments: `${REMOTE_BASE}/feed-departments.json`,

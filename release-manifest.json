@@ -1,6 +1,6 @@
 {
-  "name": "test-release",
-  "createdAt": "2026-04-13T05:58:18.343Z",
+  "name": "openclaw-ready-20260413-155710",
+  "createdAt": "2026-04-13T07:57:26.731Z",
   "sourceRoot": "/home/lindu/USTC-daily-news",
   "includedRootFiles": [
     "README.md",
@@ -11,7 +11,8 @@
     "config",
     "examples",
     "prompts",
-    "scripts"
+    "scripts",
+    "skills"
   ],
   "excludedNames": [
     ".git",

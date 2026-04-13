@@ -17,7 +17,8 @@ const ROOT_DIRS = [
   'config',
   'examples',
   'prompts',
-  'scripts'
+  'scripts',
+  'skills'
 ];
 const EXCLUDED_DIR_NAMES = new Set([
   '.git',

@@ -1,4 +1,4 @@
-[English](README.md) | **中文**
+[English](README.md) | [**中文**](README.zh-CN.md)
 
 # USTC Daily News
 
@@ -59,11 +59,12 @@ cd scripts && npm run package-release -- --name v1.0.0
 
 ## OpenClaw 安装
 
-1. 将本仓库克隆到 OpenClaw 工作目录。
-2. 执行 `./install.sh`，自动安装 `scripts/` 依赖，并创建默认的 `~/.ustc-dailynews/config.json`。
-3. 检查并按需修改 `~/.ustc-dailynews/config.json`，例如 `language`、`frequency`、`selectedDepartments` 和投递方式。
-4. 如需 Telegram 或邮件投递，请把相应密钥写入 `~/.ustc-dailynews/.env`。
-5. 执行 `cd scripts && npm run prepare-digest`。现在每次运行都会优先尝试本地刷新 `generate-feed`，若刷新失败，再回退到已有本地 feed 或 GitHub feed 快照。
+1. 执行 `./install.sh`。
+2. 安装脚本会把运行时复制到 `~/.ustc-dailynews/app`，把 OpenClaw skill 安装到 `~/.openclaw/skills/ustc-daily-news`，创建默认的 `~/.ustc-dailynews/config.json`，并安装命令 `~/.ustc-dailynews/bin/ustc-daily-news`。
+3. 用 `openclaw skills info ustc-daily-news` 确认 OpenClaw 已识别该 skill。
+4. 检查并按需修改 `~/.ustc-dailynews/config.json`，例如 `language`、`frequency`、`selectedDepartments` 和投递方式。
+5. 如需 Telegram 或邮件投递，请把相应密钥写入 `~/.ustc-dailynews/.env`。
+6. 执行 `~/.ustc-dailynews/bin/ustc-daily-news prepare-digest`。现在每次运行都会优先尝试本地刷新 `generate-feed`，若刷新失败，再回退到已有本地 feed 或 GitHub feed 快照。
 
 示例配置：
 
@@ -78,6 +79,7 @@ cd scripts && npm run package-release -- --name v1.0.0
 
 ## 系统要求
 
+- OpenClaw CLI
 - Node.js 20+
 - 可访问外部网络
 

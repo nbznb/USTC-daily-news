@@ -1,3 +1,5 @@
+[**English**](README.md) | [中文](README.zh-CN.md)
+
 # USTC Daily News
 
 An AI-powered digest project that tracks USTC official updates, department notices, campus job information, and selected technology or research highlights, then turns them into concise summaries.
@@ -59,11 +61,12 @@ The command creates `versions/<name>/` in the project root and excludes `.git`, 
 
 ## OpenClaw Installation
 
-1. Clone this repository into your OpenClaw workspace.
-2. Run `./install.sh` to install `scripts/` dependencies and create a default `~/.ustc-dailynews/config.json`.
-3. Review `~/.ustc-dailynews/config.json` and adjust `language`, `frequency`, `selectedDepartments`, and delivery settings as needed.
-4. If you want Telegram or email delivery, add the required secrets to `~/.ustc-dailynews/.env`.
-5. Run `cd scripts && npm run prepare-digest`. Each run now attempts a fresh local `generate-feed` refresh first, then falls back to cached local files or GitHub snapshots if refresh fails.
+1. Run `./install.sh`.
+2. The installer copies the runtime into `~/.ustc-dailynews/app`, installs the OpenClaw skill into `~/.openclaw/skills/ustc-daily-news`, creates `~/.ustc-dailynews/config.json`, and installs the command `~/.ustc-dailynews/bin/ustc-daily-news`.
+3. Verify OpenClaw can see the skill with `openclaw skills info ustc-daily-news`.
+4. Review `~/.ustc-dailynews/config.json` and adjust `language`, `frequency`, `selectedDepartments`, and delivery settings as needed.
+5. If you want Telegram or email delivery, add the required secrets to `~/.ustc-dailynews/.env`.
+6. Run `~/.ustc-dailynews/bin/ustc-daily-news prepare-digest`. Each run attempts a fresh local `generate-feed` refresh first, then falls back to cached local files or GitHub snapshots if refresh fails.
 
 Example config:
 
@@ -78,6 +81,7 @@ Example config:
 
 ## Requirements
 
+- OpenClaw CLI
 - Node.js 20+
 - Internet connection for source fetching and delivery APIs
 
