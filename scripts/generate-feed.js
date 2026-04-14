@@ -133,6 +133,12 @@ function stripTags(html) {
     .trim();
 }
 
+function truncateText(text, maxLength = 1800) {
+  const normalized = String(text || '').trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength).trim()} ...`;
+}
+
 function escapeRegExp(value) {
   return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -360,8 +366,162 @@ function parseUstcDepartmentHomeLinks(html, source) {
   return parseScoredLinks(html, source, { windowSize: 640, minScore: 8, limitMultiplier: 8 });
 }
 
-function parseUstcJobLinks(html, source) {
+function isUstcSpecialRecruitmentListSource(html, source) {
+  const indexUrl = String(source.indexUrl || '');
+  return /\/Specialrecruitment\/list\.aspx/i.test(indexUrl)
+    || /action=bookinglist/i.test(html)
+    || /Specialrecruitment\/info\.aspx\?itemid=\{\{item\.ID\}\}/i.test(html);
+}
+
+function parseUstcSpecialRecruitmentItemId(url = '') {
+  const match = String(url).match(/\/Specialrecruitment\/info\.aspx\?itemid=(\d+)/i);
+  return match?.[1] || null;
+}
+
+function buildUstcSpecialRecruitmentSummary(item) {
+  const holdDateText = stripTags(decodeHtml(item.HoldDateTxt || ''));
+  const venue = stripTags(item.VenuesName || item.VenuesText || '');
+  const statusText = stripTags(item.StatusName || '');
+  const parts = [];
+
+  if (holdDateText) parts.push(`招聘会时间：${holdDateText}`);
+  if (venue) parts.push(`举办地点：${venue}`);
+  if (statusText) parts.push(`状态：${statusText}`);
+
+  if (parts.length === 0) return '';
+  return `${parts.join('；')}。请打开原始链接查看完整宣讲会详情。`;
+}
+
+async function postJsonForm(url, formData) {
+  const body = new URLSearchParams();
+  for (const [key, value] of Object.entries(formData || {})) {
+    if (value === undefined || value === null) continue;
+    body.set(key, String(value));
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'User-Agent': USER_AGENT
+    },
+    body: body.toString(),
+    signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS)
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = (await res.text()).replace(/^\uFEFF/, '').trim();
+  if (!text) return null;
+  return JSON.parse(text);
+}
+
+async function fetchUstcSpecialRecruitmentCandidates(source) {
+  const maxItems = source.maxItems || 6;
+  const apiUrl = absolutizeUrl(source.siteUrl || source.indexUrl, '/Ajax/jywapi.ashx');
+  const payload = await postJsonForm(apiUrl, {
+    action: 'bookinglist',
+    pageindex: 1,
+    pagesize: Math.max(maxItems * 6, 24)
+  });
+  const rows = Array.isArray(payload?.data) ? payload.data : [];
+
+  const items = rows.map(row => {
+    const title = cleanTitle(row.Theme || '', source.name);
+    const itemId = row.ID;
+    const url = itemId
+      ? absolutizeUrl(source.siteUrl || source.indexUrl, `/Specialrecruitment/info.aspx?itemid=${itemId}`)
+      : null;
+    const publishedAt = normalizeDateString(row.HoldDate || row.HoldDateTxt || '');
+    const summary = buildUstcSpecialRecruitmentSummary(row);
+
+    let candidateScore = 18;
+    const statusText = stripTags(row.StatusName || '');
+    if (statusText.includes('今天')) candidateScore += 10;
+
+    const dayMatch = statusText.match(/还有\s*(\d+)\s*天/);
+    if (dayMatch) {
+      const days = Number.parseInt(dayMatch[1], 10);
+      if (Number.isFinite(days)) candidateScore += Math.max(0, 9 - Math.min(days, 9));
+    }
+
+    if (publishedAt) {
+      const diffDays = Math.round((new Date(`${publishedAt}T00:00:00Z`).getTime() - Date.now()) / 86400000);
+      if (Number.isFinite(diffDays) && diffDays >= 0) {
+        candidateScore += Math.max(0, 6 - Math.min(diffDays, 6));
+      }
+    }
+
+    if (/招聘|宣讲|双选|实习/.test(title)) candidateScore += 4;
+
+    return {
+      title,
+      url,
+      guid: url || (itemId ? `special:${itemId}` : title),
+      publishedAt,
+      summary,
+      candidateScore
+    };
+  });
+
+  return dedupeCandidates(items)
+    .filter(item => passesSourceFilters(item, source))
+    .sort((a, b) => {
+      if ((b.candidateScore || 0) !== (a.candidateScore || 0)) return (b.candidateScore || 0) - (a.candidateScore || 0);
+      if (a.publishedAt && b.publishedAt) return new Date(b.publishedAt) - new Date(a.publishedAt);
+      if (a.publishedAt) return -1;
+      if (b.publishedAt) return 1;
+      return 0;
+    })
+    .slice(0, maxItems * 10);
+}
+
+async function parseUstcJobLinks(html, source) {
+  if (!isUstcSpecialRecruitmentListSource(html, source)) {
+    return parseScoredLinks(html, source, { windowSize: 720, minScore: 9, limitMultiplier: 10 });
+  }
+
+  try {
+    const apiItems = await fetchUstcSpecialRecruitmentCandidates(source);
+    if (apiItems.length > 0) return apiItems;
+  } catch {
+    // Fallback to static link parsing if API temporarily fails.
+  }
+
   return parseScoredLinks(html, source, { windowSize: 720, minScore: 9, limitMultiplier: 10 });
+}
+
+async function fetchUstcSpecialRecruitmentArticle(item, source) {
+  const itemId = parseUstcSpecialRecruitmentItemId(item.url);
+  if (!itemId) return null;
+
+  const apiUrl = absolutizeUrl(source.siteUrl || source.indexUrl, '/Ajax/jywapi.ashx');
+  const payload = await postJsonForm(apiUrl, { action: 'bookinginfo', rid: itemId });
+  if (!payload || payload.r !== 0) return null;
+
+  const title = cleanTitle(payload.Theme || item.title || '', source.name);
+  const holdDate = stripTags(payload.HoldDate || '');
+  const timeSlot = stripTags(payload.TimeSlot || payload.TimeSlotText || '');
+  const venue = stripTags(payload.VenuesName || payload.VenuesText || '');
+  const description = truncateText(stripTags(payload.Description || ''), 1800);
+  const publishedAt = normalizeDateString(payload.HoldDate || item.publishedAt || '');
+
+  const parts = [];
+  if (holdDate || timeSlot) parts.push(`招聘会时间：${[holdDate, timeSlot].filter(Boolean).join(' ')}`);
+  if (venue) parts.push(`举办地点：${venue}`);
+  if (description) parts.push(`内容简介：${description}`);
+
+  let content = parts.join('。').trim();
+  if (content && !content.endsWith('。')) content += '。';
+  if (content.length < 50 && item.summary) {
+    content = [content, item.summary].filter(Boolean).join(' ').trim();
+  }
+
+  return {
+    title: title || cleanTitle(item.title, source.name),
+    publishedAt: publishedAt || item.publishedAt || null,
+    content,
+    sourceName: source.name
+  };
 }
 
 function extractFirst(html, regexes) {
@@ -576,7 +736,7 @@ async function fetchScrapeItems(source, state, options) {
     throw new Error(`Unknown list parser: ${source.listParser}`);
   }
 
-  const candidates = parser(html, source);
+  const candidates = await parser(html, source);
   report.candidateCount = candidates.length;
 
   const shortlisted = candidates.slice(0, Math.max((source.maxItems || 5) * 4, 8));
@@ -598,14 +758,29 @@ async function fetchScrapeItems(source, state, options) {
 
     if (source.contentMode === 'article' && item.url) {
       try {
-        const articleRes = await fetchResponse(item.url);
-        if (!articleRes.ok) {
-          report.warnings.push(`${item.url}: HTTP ${articleRes.status}`);
-          continue;
+        let resolvedByApi = false;
+        if (source.category === 'jobs') {
+          try {
+            const specialRecruitmentArticle = await fetchUstcSpecialRecruitmentArticle(item, source);
+            if (specialRecruitmentArticle) {
+              article = specialRecruitmentArticle;
+              resolvedByApi = true;
+            }
+          } catch (error) {
+            report.warnings.push(`${item.url}: bookinginfo API: ${normalizeErrorMessage(error)}`);
+          }
         }
-        const articleHtml = await articleRes.text();
-        article = extractGenericArticle(articleHtml, source);
-        if (!article.publishedAt) article.publishedAt = item.publishedAt || null;
+
+        if (!resolvedByApi) {
+          const articleRes = await fetchResponse(item.url);
+          if (!articleRes.ok) {
+            report.warnings.push(`${item.url}: HTTP ${articleRes.status}`);
+            continue;
+          }
+          const articleHtml = await articleRes.text();
+          article = extractGenericArticle(articleHtml, source);
+          if (!article.publishedAt) article.publishedAt = item.publishedAt || null;
+        }
       } catch (error) {
         report.warnings.push(`${item.url}: ${normalizeErrorMessage(error)}`);
         continue;

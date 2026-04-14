@@ -5,7 +5,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 OPENCLAW_DIR="${HOME}/.openclaw"
 USER_DIR="${OPENCLAW_DIR}/ustc-daily-news"
-LEGACY_USER_DIR="${HOME}/.ustc-dailynews"
 APP_DIR="${USER_DIR}/app"
 BIN_DIR="${USER_DIR}/bin"
 CONFIG_PATH="${USER_DIR}/config.json"
@@ -122,16 +121,8 @@ chmod +x "${WRAPPER_PATH}"
 
 cp -R "${APP_DIR}/skills/${SKILL_NAME}" "${INSTALLED_SKILL_DIR}"
 
-if [ -d "${LEGACY_USER_DIR}/prompts" ] && [ -z "$(find "${USER_DIR}/prompts" -mindepth 1 -print -quit 2>/dev/null)" ]; then
-  cp -R "${LEGACY_USER_DIR}/prompts/." "${USER_DIR}/prompts/"
-fi
-
 if [ ! -f "${CONFIG_PATH}" ]; then
-  if [ -f "${LEGACY_USER_DIR}/config.json" ]; then
-    cp "${LEGACY_USER_DIR}/config.json" "${CONFIG_PATH}"
-    echo "Migrated existing config to ${CONFIG_PATH}"
-  else
-    cat > "${CONFIG_PATH}" <<'EOF'
+  cat > "${CONFIG_PATH}" <<'EOF'
 {
   "platform": "openclaw",
   "language": "zh",
@@ -146,20 +137,14 @@ if [ ! -f "${CONFIG_PATH}" ]; then
   "onboardingComplete": false
 }
 EOF
-    echo "Created default config at ${CONFIG_PATH}"
-  fi
+  echo "Created default config at ${CONFIG_PATH}"
 else
   echo "Keeping existing config at ${CONFIG_PATH}"
 fi
 
 if [ ! -f "${ENV_PATH}" ]; then
-  if [ -f "${LEGACY_USER_DIR}/.env" ]; then
-    cp "${LEGACY_USER_DIR}/.env" "${ENV_PATH}"
-    echo "Migrated existing env file to ${ENV_PATH}"
-  else
-    : > "${ENV_PATH}"
-    echo "Created empty env file at ${ENV_PATH}"
-  fi
+  : > "${ENV_PATH}"
+  echo "Created empty env file at ${ENV_PATH}"
 fi
 
 "${WRAPPER_PATH}" help >/dev/null

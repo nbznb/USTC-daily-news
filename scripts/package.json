@@ -1,5 +1,5 @@
 {
-  "name": "ustc-dailynews-scripts",
+  "name": "ustc-daily-news-scripts",
   "version": "1.0.0",
   "description": "Scripts for USTC Daily News: feed generation, validation, digest preparation, and delivery",
   "type": "module",

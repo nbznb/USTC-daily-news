@@ -468,7 +468,7 @@
       "name": "USTC Job Center",
       "category": "jobs",
       "type": "scrape",
-      "indexUrl": "https://www.job.ustc.edu.cn/",
+      "indexUrl": "https://www.job.ustc.edu.cn/Specialrecruitment/list.aspx",
       "siteUrl": "https://www.job.ustc.edu.cn/",
       "listParser": "ustc_job_links",
       "articleParser": "generic_article",
