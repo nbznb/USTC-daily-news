@@ -488,7 +488,17 @@
       "feedUrl": "https://www.qbitai.com/feed",
       "siteUrl": "https://www.qbitai.com",
       "lookbackHours": 96,
-      "maxItems": 6,
+      "maxItems": 5,
+      "contentMode": "summary"
+    },
+    {
+      "name": "36Kr",
+      "category": "tech",
+      "type": "rss",
+      "feedUrl": "https://36kr.com/feed",
+      "siteUrl": "https://36kr.com",
+      "lookbackHours": 96,
+      "maxItems": 5,
       "contentMode": "summary"
     }
   ]

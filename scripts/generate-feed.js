@@ -3,13 +3,17 @@
 import { readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join, dirname } from 'path';
+import { homedir } from 'os';
 import { fileURLToPath } from 'url';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const STATE_PATH = join(SCRIPT_DIR, '..', 'state-feed.json');
 const SOURCES_PATH = join(SCRIPT_DIR, '..', 'config', 'default-sources.json');
+const USER_CONFIG_PATH = join(homedir(), '.openclaw', 'ustc-daily-news', 'config.json');
 const DEFAULT_LOOKBACK_HOURS = 168;
 const DEFAULT_TIMEOUT_MS = 15000;
+const MAX_ITEMS_PER_FEED = 50;
+const STATE_RETENTION_DAYS = 14;
 const USER_AGENT = 'USTCDailyNews/1.0 (digest aggregator)';
 
 const CATEGORY_DEFS = [
@@ -65,15 +69,37 @@ async function loadState() {
 }
 
 async function saveState(state) {
-  const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+  const cutoff = Date.now() - STATE_RETENTION_DAYS * 24 * 60 * 60 * 1000;
   for (const [id, ts] of Object.entries(state.seenItems)) {
-    if (ts < cutoff) delete state.seenItems[id];
+    if (!Number.isFinite(ts) || ts < cutoff) {
+      delete state.seenItems[id];
+    }
   }
   await writeFile(STATE_PATH, JSON.stringify(state, null, 2));
 }
 
 async function loadSources() {
   return JSON.parse(await readFile(SOURCES_PATH, 'utf-8'));
+}
+
+async function loadUserConfig() {
+  if (!existsSync(USER_CONFIG_PATH)) {
+    return {};
+  }
+  try {
+    return JSON.parse(await readFile(USER_CONFIG_PATH, 'utf-8'));
+  } catch {
+    return {};
+  }
+}
+
+function normalizeSelectedDepartments(rawSelection) {
+  if (!Array.isArray(rawSelection)) return [];
+  return [...new Set(rawSelection.map(item => String(item).trim()).filter(Boolean))];
+}
+
+function isAllowDuplicatePushEnabled(config) {
+  return config?.allowDuplicatePush !== false;
 }
 
 function toIsoDateOrNull(value) {
@@ -270,6 +296,15 @@ function dedupeCandidates(items) {
   return deduped;
 }
 
+function shuffleItems(items) {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
 function scoreCandidate(title, url, nearbyText, source) {
   let score = 0;
   const sectionKeywords = [...DEFAULT_SECTION_KEYWORDS, ...(source.sectionKeywords || [])];
@@ -442,7 +477,14 @@ async function fetchResponse(url) {
 }
 
 function makeUniqueId(source, rawId) {
+  if (!rawId) return null;
   return `${source.category}:${source.name}:${rawId}`;
+}
+
+function markSeen(state, uniqueId, enabled) {
+  if (enabled && uniqueId) {
+    state.seenItems[uniqueId] = Date.now();
+  }
 }
 
 function initSourceReport(source) {
@@ -460,10 +502,18 @@ function initSourceReport(source) {
   };
 }
 
-function markSeen(state, uniqueId, enabled) {
-  if (enabled) {
-    state.seenItems[uniqueId] = Date.now();
+function filterSourcesForCategory(categoryKey, sources, userConfig) {
+  if (categoryKey !== 'departments') {
+    return sources;
   }
+
+  const selectedDepartments = normalizeSelectedDepartments(userConfig.selectedDepartments);
+  if (selectedDepartments.length === 0) {
+    return sources;
+  }
+
+  const selectedSet = new Set(selectedDepartments);
+  return sources.filter(source => selectedSet.has(source.departmentName || source.name));
 }
 
 async function fetchFeedItems(source, state, options) {
@@ -614,7 +664,7 @@ async function fetchSourceItems(source, state, options) {
   throw new Error(`Unsupported source type: ${source.type}`);
 }
 
-async function fetchCategoryContent(sources, state, options, errors) {
+async function fetchCategoryContent(categoryKey, sources, state, options, errors) {
   const results = [];
   const reports = [];
 
@@ -634,17 +684,19 @@ async function fetchCategoryContent(sources, state, options, errors) {
     }
   }
 
-  results.sort((a, b) => {
-    if (a.publishedAt && b.publishedAt) return new Date(b.publishedAt) - new Date(a.publishedAt);
-    if (a.publishedAt) return -1;
-    if (b.publishedAt) return 1;
-    return 0;
-  });
+  const orderedResults = categoryKey === 'tech'
+    ? shuffleItems(results)
+    : [...results].sort((a, b) => {
+      if (a.publishedAt && b.publishedAt) return new Date(b.publishedAt) - new Date(a.publishedAt);
+      if (a.publishedAt) return -1;
+      if (b.publishedAt) return 1;
+      return 0;
+    });
 
-  return { items: results, reports };
+  return { items: orderedResults.slice(0, MAX_ITEMS_PER_FEED), reports };
 }
 
-function buildFeedPayload(categoryDef, items, errors, sources) {
+function buildFeedPayload(categoryDef, items, errors, sources, allSources = sources) {
   const categoryErrors = errors.filter(message => message.startsWith(`${categoryDef.key}:`));
   const payload = {
     generatedAt: new Date().toISOString(),
@@ -659,7 +711,7 @@ function buildFeedPayload(categoryDef, items, errors, sources) {
   };
 
   if (categoryDef.key === 'departments') {
-    payload.meta.availableDepartments = sources.map(source => source.departmentName || source.name);
+    payload.meta.availableDepartments = allSources.map(source => source.departmentName || source.name);
   }
 
   return payload;
@@ -680,10 +732,13 @@ function buildCategorySummary(items, reports) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const sources = await loadSources();
+  const userConfig = await loadUserConfig();
   const state = args.validate ? { seenItems: {} } : await loadState();
+  const allowDuplicatePush = isAllowDuplicatePushEnabled(userConfig);
+  const selectedDepartments = normalizeSelectedDepartments(userConfig.selectedDepartments);
   const errors = [];
   const options = {
-    useState: !args.validate,
+    useState: !args.validate && !allowDuplicatePush,
     updateState: !args.validate
   };
 
@@ -691,6 +746,10 @@ async function main() {
     status: 'ok',
     mode: args.validate ? 'validate' : 'generate',
     generatedAt: new Date().toISOString(),
+    settings: {
+      allowDuplicatePush,
+      dedupeEnabled: options.useState
+    },
     categories: {}
   };
 
@@ -698,11 +757,20 @@ async function main() {
 
   for (const categoryDef of CATEGORY_DEFS) {
     const categorySources = sources[categoryDef.key] || [];
-    const { items, reports } = await fetchCategoryContent(categorySources, state, options, errors);
-    categoryResults[categoryDef.key] = { items, reports, sources: categorySources };
+    const activeSources = filterSourcesForCategory(categoryDef.key, categorySources, userConfig);
+    if (categoryDef.key === 'departments' && selectedDepartments.length > 0 && activeSources.length === 0) {
+      errors.push(`departments: No department sources match selectedDepartments: ${selectedDepartments.join(', ')}`);
+    }
+    const { items, reports } = await fetchCategoryContent(categoryDef.key, activeSources, state, options, errors);
+    categoryResults[categoryDef.key] = {
+      items,
+      reports,
+      sources: activeSources,
+      allSources: categorySources
+    };
     report.categories[categoryDef.key] = {
       ...buildCategorySummary(items, reports),
-      sourceCount: categorySources.length,
+      sourceCount: activeSources.length,
       sources: reports
     };
   }
@@ -714,10 +782,18 @@ async function main() {
     ])
   );
 
+  const totalItemCount = CATEGORY_DEFS.reduce(
+    (sum, categoryDef) => sum + (report.categories[categoryDef.key]?.itemCount || 0),
+    0
+  );
+
   if (!args.validate) {
+    if (totalItemCount === 0 && errors.length > 0) {
+      throw new Error('Feed generation produced zero items with fetch errors; existing feed files were kept unchanged');
+    }
     for (const categoryDef of CATEGORY_DEFS) {
       const category = categoryResults[categoryDef.key];
-      const payload = buildFeedPayload(categoryDef, category.items, errors, category.sources);
+      const payload = buildFeedPayload(categoryDef, category.items, errors, category.sources, category.allSources);
       await writeFile(join(SCRIPT_DIR, '..', categoryDef.file), JSON.stringify(payload, null, 2));
     }
     await saveState(state);

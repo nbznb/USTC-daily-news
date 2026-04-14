@@ -2,7 +2,7 @@
 
 # USTC Daily News
 
-一个 AI 驱动的日报项目，用于跟踪中科大官方信息、院系动态、就业信息，以及精选科技和研究动态，并将其整理成简洁摘要。
+一个 AI 驱动的日报项目，用于跟踪中科大官方信息、院系动态、就业信息，以及精选科技动态，并将其整理成简洁摘要。
 
 ## 你会得到什么
 
@@ -11,16 +11,16 @@
 - 中科大官方新闻与通知
 - 已选院系的动态与公告
 - 校园就业与招聘信息
-- 公开科技与研究资讯源的精选内容
+- 公开科技资讯源的精选内容
 - 所有原始链接
 - 英文、中文或双语输出
 
 ## 架构说明
 
 - `config/default-sources.json`：定义所有数据源，包括院系官网和就业信息网
-- `config/config-schema.json`：定义用户配置结构，包括 `selectedDepartments`
+- `config/config-schema.json`：定义用户配置结构，包括 `selectedDepartments` 与 `allowDuplicatePush`
 - `scripts/generate-feed.js`：抓取数据源、筛选候选内容、写出 feeds，并可生成校验报告
-- `scripts/prepare-digest.js`：读取 feeds、按配置过滤院系内容，并整理给 LLM；科技与研究内容统一走 `tech` 分支
+- `scripts/prepare-digest.js`：读取 feeds、按配置过滤院系内容，并整理给 LLM；科技内容统一走 `tech` 分支
 - `scripts/deliver.js`：负责 stdout、Telegram 或邮件投递
 - `prompts/`：控制摘要风格和章节顺序，包括统一 `tech` 分支的摘要风格
 - `.github/workflows/generate-feed.yml`：定时刷新 feed
@@ -31,13 +31,28 @@
 
 ```json
 {
-  "selectedDepartments": ["少年班学院"]
+  "selectedDepartments": [],
+  "allowDuplicatePush": true
 }
 ```
 
-- 默认只推送 1 个院系：`少年班学院`
+- 默认包含当前可用的全部院系
 - 可以手动添加多个院系名称
 - 摘要生成阶段只会注入所选院系的内容
+- 如果显式设置了 `selectedDepartments` 但全部不匹配，院系模块会为空，不会回退到全部院系
+
+## 重复推送控制
+
+在 `~/.openclaw/ustc-daily-news/config.json` 中配置：
+
+```json
+{
+  "allowDuplicatePush": true
+}
+```
+
+- `true`（默认）：允许跨运行重复推送
+- `false`：基于 `state-feed.json` 进行去重
 
 ## 校验命令
 
@@ -55,7 +70,7 @@ cd scripts && npm run validate-sources
 cd scripts && npm run package-release -- --name v1.0.0
 ```
 
-命令会在项目根目录生成 `versions/<name>/`，并排除 `.git`、`scripts/node_modules`、`feed-*.json`、`state-feed.json`、`source-validation-report.json` 以及常见临时文件。
+命令会在项目根目录生成 `versions/<name>/`，并排除 `.git`、`scripts/node_modules`、`feed-*.json`、`source-validation-report.json` 以及常见临时文件。
 
 ## OpenClaw 安装
 

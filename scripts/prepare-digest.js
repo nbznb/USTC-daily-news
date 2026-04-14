@@ -79,6 +79,20 @@ function hasMissingFeeds(feeds) {
   return Object.values(feeds).some(feed => !feed);
 }
 
+function countFeedItems(feed, key) {
+  if (!feed || !Array.isArray(feed[key])) return 0;
+  return feed[key].length;
+}
+
+function hasUsableFeeds(feeds) {
+  const total =
+    countFeedItems(feeds.official, 'official') +
+    countFeedItems(feeds.departments, 'departments') +
+    countFeedItems(feeds.jobs, 'jobs') +
+    countFeedItems(feeds.tech, 'tech');
+  return total > 0;
+}
+
 async function runLocalGenerate(scriptDir) {
   try {
     await execFileAsync(process.execPath, [join(scriptDir, 'generate-feed.js')], {
@@ -113,19 +127,28 @@ async function loadPromptWithFallback(userPath, localPath, remoteUrl) {
 }
 
 function normalizeSelectedDepartments(rawSelection, availableDepartments) {
-  const requested = Array.isArray(rawSelection) ? rawSelection.map(item => String(item).trim()).filter(Boolean) : [];
+  const requested = Array.isArray(rawSelection)
+    ? [...new Set(rawSelection.map(item => String(item).trim()).filter(Boolean))]
+    : [];
   const available = new Set(availableDepartments);
   const selected = requested.filter(name => available.has(name));
+  const unmatched = requested.filter(name => !available.has(name));
 
-  if (selected.length > 0) {
-    return [...new Set(selected)];
+  if (requested.length === 0) {
+    return {
+      hasExplicitSelection: false,
+      requested,
+      selected: [...availableDepartments],
+      unmatched
+    };
   }
 
-  if (availableDepartments.includes('少年班学院')) {
-    return ['少年班学院'];
-  }
-
-  return availableDepartments.length > 0 ? [availableDepartments[0]] : [];
+  return {
+    hasExplicitSelection: true,
+    requested,
+    selected: [...new Set(selected)],
+    unmatched
+  };
 }
 
 async function main() {
@@ -135,7 +158,8 @@ async function main() {
     language: 'zh',
     frequency: 'daily',
     delivery: { method: 'stdout' },
-    selectedDepartments: ['少年班学院']
+    selectedDepartments: [],
+    allowDuplicatePush: true
   };
 
   if (existsSync(CONFIG_PATH)) {
@@ -161,11 +185,21 @@ async function main() {
     tech: join(localRootDir, 'feed-tech.json')
   };
 
-  let localFeeds = await loadLocalFeeds(localFeedPaths);
+  const cachedLocalFeeds = await loadLocalFeeds(localFeedPaths);
+  let localFeeds = cachedLocalFeeds;
 
   const generatedLocally = await runLocalGenerate(scriptDir);
   if (generatedLocally) {
-    localFeeds = await loadLocalFeeds(localFeedPaths);
+    const refreshedLocalFeeds = await loadLocalFeeds(localFeedPaths);
+    if (hasUsableFeeds(refreshedLocalFeeds)) {
+      localFeeds = refreshedLocalFeeds;
+    } else if (hasUsableFeeds(cachedLocalFeeds)) {
+      localFeeds = cachedLocalFeeds;
+      errors.push('Local feed refresh returned empty content, falling back to previous local feeds');
+    } else {
+      localFeeds = refreshedLocalFeeds;
+      errors.push('Local feed refresh returned empty content, falling back to remote feeds where available');
+    }
   } else if (hasMissingFeeds(localFeeds)) {
     errors.push('Local feed generation failed, falling back to GitHub feeds where available');
   } else {
@@ -211,8 +245,16 @@ async function main() {
   }
 
   const availableDepartments = feedDepartments?.meta?.availableDepartments || [];
-  const selectedDepartments = normalizeSelectedDepartments(config.selectedDepartments, availableDepartments);
-  const departments = (feedDepartments?.departments || []).filter(item => selectedDepartments.includes(item.departmentName || item.sourceName));
+  const departmentSelection = normalizeSelectedDepartments(config.selectedDepartments, availableDepartments);
+  const selectedDepartments = departmentSelection.selected;
+  const selectedSet = new Set(selectedDepartments);
+  const departments = (feedDepartments?.departments || []).filter(item => selectedSet.has(item.departmentName || item.sourceName));
+
+  if (departmentSelection.hasExplicitSelection && departmentSelection.selected.length === 0) {
+    errors.push(`selectedDepartments did not match any available departments: ${departmentSelection.requested.join(', ')}`);
+  } else if (departmentSelection.hasExplicitSelection && departmentSelection.unmatched.length > 0) {
+    errors.push(`Some selectedDepartments were ignored because they are unavailable: ${departmentSelection.unmatched.join(', ')}`);
+  }
 
   const generatedCandidates = [
     feedOfficial?.generatedAt,
@@ -228,10 +270,12 @@ async function main() {
       language: config.language || 'zh',
       frequency: config.frequency || 'daily',
       delivery: config.delivery || { method: 'stdout' },
-      selectedDepartments
+      selectedDepartments,
+      allowDuplicatePush: config.allowDuplicatePush !== false
     },
     departmentSelection: {
       selected: selectedDepartments,
+      requested: departmentSelection.requested,
       available: availableDepartments
     },
     official: feedOfficial?.official || [],

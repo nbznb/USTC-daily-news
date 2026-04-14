@@ -139,6 +139,7 @@ if [ ! -f "${CONFIG_PATH}" ]; then
   "frequency": "daily",
   "deliveryTime": "08:00",
   "selectedDepartments": ["少年班学院"],
+  "allowDuplicatePush": true,
   "delivery": {
     "method": "stdout"
   },

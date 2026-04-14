@@ -2,7 +2,7 @@
 
 # USTC Daily News
 
-An AI-powered digest project that tracks USTC official updates, department notices, campus job information, and selected technology or research highlights, then turns them into concise summaries.
+An AI-powered digest project that tracks USTC official updates, department notices, campus job information, and selected technology highlights, then turns them into concise summaries.
 
 ## What You Get
 
@@ -11,16 +11,16 @@ A daily or weekly digest with:
 - USTC official news and notices
 - Selected department updates from chosen schools
 - Campus job and recruitment information
-- Selected technology and research updates from public feeds
+- Selected technology updates from public feeds
 - Links to all original sources
 - English, Chinese, or bilingual output
 
 ## Architecture
 
 - `config/default-sources.json` defines all tracked sources, including department sites and the job center
-- `config/config-schema.json` defines user config, including `selectedDepartments`
+- `config/config-schema.json` defines user config, including `selectedDepartments` and `allowDuplicatePush`
 - `scripts/generate-feed.js` fetches sources, scores candidates, writes feeds, and can emit a validation report
-- `scripts/prepare-digest.js` loads feeds, filters department items by config, and bundles prompts for the LLM; technology and research items are both routed through `tech`
+- `scripts/prepare-digest.js` loads feeds, filters department items by config, and bundles prompts for the LLM; technology items are routed through `tech`
 - `scripts/deliver.js` delivers the final digest to stdout, Telegram, or email
 - `prompts/` controls summary style and section order, including the unified summary style for items inside `tech`
 - `.github/workflows/generate-feed.yml` refreshes feeds on schedule
@@ -31,13 +31,28 @@ Configure selected departments in `~/.openclaw/ustc-daily-news/config.json`:
 
 ```json
 {
-  "selectedDepartments": ["少年班学院"]
+  "selectedDepartments": [],
+  "allowDuplicatePush": true
 }
 ```
 
-- The default selection is one department: `少年班学院`
+- The default selection includes all available departments
 - You can add multiple department names manually
 - Only selected departments are passed into digest generation
+- If you explicitly set `selectedDepartments` but none match, the departments section becomes empty (no fallback to all departments)
+
+## Duplicate Push Control
+
+Configure duplicate behavior in `~/.openclaw/ustc-daily-news/config.json`:
+
+```json
+{
+  "allowDuplicatePush": true
+}
+```
+
+- `true` (default): repeated items are allowed across runs
+- `false`: repeated items are filtered with `state-feed.json`
 
 ## Validation
 
@@ -57,7 +72,7 @@ Create a clean release folder with only the core project files:
 cd scripts && npm run package-release -- --name v1.0.0
 ```
 
-The command creates `versions/<name>/` in the project root and excludes `.git`, `scripts/node_modules`, generated feeds, `state-feed.json`, `source-validation-report.json`, and common temporary files.
+The command creates `versions/<name>/` in the project root and excludes `.git`, `scripts/node_modules`, generated feeds, `source-validation-report.json`, and common temporary files.
 
 ## OpenClaw Installation
 
@@ -82,7 +97,8 @@ cat > ~/.openclaw/ustc-daily-news/config.json <<'EOF'
   "timezone": "Asia/Shanghai",
   "frequency": "daily",
   "deliveryTime": "08:00",
-  "selectedDepartments": ["少年班学院"],
+  "selectedDepartments": [],
+  "allowDuplicatePush": true,
   "delivery": {
     "method": "stdout"
   },
@@ -109,6 +125,7 @@ cat > ~/.openclaw/ustc-daily-news/config.json <<'EOF'
   "weeklyDay": "friday",
   "deliveryTime": "09:30",
   "selectedDepartments": ["少年班学院", "计算机科学与技术学院"],
+  "allowDuplicatePush": true,
   "delivery": {
     "method": "telegram",
     "chatId": "YOUR_TELEGRAM_CHAT_ID"
@@ -131,7 +148,8 @@ Example config:
   "platform": "openclaw",
   "language": "zh",
   "frequency": "daily",
-  "selectedDepartments": ["少年班学院"]
+  "selectedDepartments": [],
+  "allowDuplicatePush": true
 }
 ```
 

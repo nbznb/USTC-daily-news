@@ -38,13 +38,18 @@
     },
     "selectedDepartments": {
       "type": "array",
-      "description": "Department names to include in the digest. Default is one department: 少年班学院.",
-      "default": ["少年班学院"],
-      "minItems": 1,
+      "description": "Department names to include in the digest. When omitted or empty, all available departments are included.",
+      "default": [],
+      "minItems": 0,
       "uniqueItems": true,
       "items": {
         "type": "string"
       }
+    },
+    "allowDuplicatePush": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, allow repeated items across runs. When false, dedupe using state-feed.json."
     },
     "delivery": {
       "type": "object",
