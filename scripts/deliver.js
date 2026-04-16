@@ -6,7 +6,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { config as loadEnv } from 'dotenv';
 
-const USER_DIR = join(homedir(), '.openclaw', 'skills', 'ustc-daily-news');
+const USER_DIR = join(homedir(), '.openclaw', 'ustc-daily-news');
 const CONFIG_PATH = join(USER_DIR, 'config.json');
 const ENV_PATH = join(USER_DIR, '.env');
 

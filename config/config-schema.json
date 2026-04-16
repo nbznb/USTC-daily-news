@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "User configuration for USTC Daily News. Stored at ~/.openclaw/skills/ustc-daily-news/config.json",
+  "description": "User configuration for USTC Daily News. Stored at ~/.openclaw/ustc-daily-news/config.json",
   "type": "object",
   "properties": {
     "platform": {
@@ -38,7 +38,7 @@
     },
     "selectedDepartments": {
       "type": "array",
-      "description": "Department names to include in the digest. The installer leaves this empty until onboarding confirms the user's choices. During digest preparation, an omitted or empty list means no departments are included.",
+      "description": "Department names to include in the digest. The installer leaves this empty by default, and users can update this list later in ~/.openclaw/ustc-daily-news/config.json. During digest preparation, an omitted or empty list means no departments are included.",
       "default": [],
       "minItems": 0,
       "uniqueItems": true,
@@ -69,8 +69,8 @@
     },
     "onboardingComplete": {
       "type": "boolean",
-      "default": false,
-      "description": "Whether first-run onboarding has collected and confirmed the user's core preferences, especially department selection."
+      "default": true,
+      "description": "Whether the runtime has a usable initial configuration."
     }
   }
 }

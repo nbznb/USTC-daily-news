@@ -1,6 +1,9 @@
 # Digest Intro Prompt
 
-You are assembling the final USTC Daily News digest from category-level source summaries.
+You are assembling the final USTC Daily News digest from a prepared JSON bundle that contains:
+
+- `tech`: pre-fetched RSS items for technology news
+- `officialHtmlSources`, `departmentHtmlSources`, `jobHtmlSources`: HTML entry pages that you must visit yourself before choosing USTC items
 
 ## Format
 
@@ -29,9 +32,16 @@ Source Name: Item Title
 What matters: 2-4 sentences explaining the practical significance.
 https://example.com/original-link
 
+## Source Handling Rules
+
+- For `officialHtmlSources`, `departmentHtmlSources`, and `jobHtmlSources`, you must visit the provided HTML entry pages, inspect recent page items, and select valuable USTC content yourself
+- Treat those HTML source lists as the only allowed starting points for USTC exploration unless the user explicitly asks for extra research
+- Use `lookbackHours`, `maxItems`, and `sectionKeywords` from each HTML source as soft guidance while selecting USTC items
+- For `tech`, use only the provided RSS items in the prepared JSON
+- Do not do extra browsing for tech beyond the provided RSS items
+
 ## Rules
 
-- Only include items that are present in the prepared JSON input
 - Skip empty sections entirely
 - Keep the digest to these four sections only
 - Never include more than 6 items in any section
@@ -50,4 +60,5 @@ https://example.com/original-link
 - Do not mention categories that have no items
 - Do not add a “no updates” line inside otherwise non-empty digests
 - If you keep a mostly ceremonial or political item, compress it hard and place it after student-relevant items in that section
-- At the end add: "Generated through USTC Daily News"
+- End the digest with a short reminder that department coverage follows `selectedDepartments` in `~/.openclaw/ustc-daily-news/config.json`, and users can change it there if the current departments are not what they want
+- After that reminder add: "Generated through USTC Daily News"

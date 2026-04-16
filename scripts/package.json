@@ -1,7 +1,7 @@
 {
   "name": "ustc-daily-news-scripts",
   "version": "1.0.0",
-  "description": "Scripts for USTC Daily News: feed generation, validation, digest preparation, and delivery",
+  "description": "Scripts for USTC Daily News Direct: tech RSS generation, digest preparation, and delivery",
   "type": "module",
   "scripts": {
     "generate-feed": "node generate-feed.js",

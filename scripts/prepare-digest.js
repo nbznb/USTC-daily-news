@@ -8,15 +8,12 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 
-const USER_DIR = join(homedir(), '.openclaw', 'skills', 'ustc-daily-news');
+const USER_DIR = join(homedir(), '.openclaw', 'ustc-daily-news');
 const CONFIG_PATH = join(USER_DIR, 'config.json');
 const execFileAsync = promisify(execFile);
 
-const REMOTE_BASE = 'https://raw.githubusercontent.com/nbznb/USTC-daily-news/main';
+const REMOTE_BASE = 'https://raw.githubusercontent.com/nbznb/USTC-daily-news/main/versions/version-direct';
 const FEED_URLS = {
-  official: `${REMOTE_BASE}/feed-official.json`,
-  departments: `${REMOTE_BASE}/feed-departments.json`,
-  jobs: `${REMOTE_BASE}/feed-jobs.json`,
   tech: `${REMOTE_BASE}/feed-tech.json`
 };
 
@@ -59,38 +56,8 @@ async function loadLocalJSON(localPath) {
   return null;
 }
 
-async function loadLocalFeeds(localFeedPaths) {
-  const [
-    official,
-    departments,
-    jobs,
-    tech
-  ] = await Promise.all([
-    loadLocalJSON(localFeedPaths.official),
-    loadLocalJSON(localFeedPaths.departments),
-    loadLocalJSON(localFeedPaths.jobs),
-    loadLocalJSON(localFeedPaths.tech)
-  ]);
-
-  return { official, departments, jobs, tech };
-}
-
-function hasMissingFeeds(feeds) {
-  return Object.values(feeds).some(feed => !feed);
-}
-
-function countFeedItems(feed, key) {
-  if (!feed || !Array.isArray(feed[key])) return 0;
-  return feed[key].length;
-}
-
-function hasUsableFeeds(feeds) {
-  const total =
-    countFeedItems(feeds.official, 'official') +
-    countFeedItems(feeds.departments, 'departments') +
-    countFeedItems(feeds.jobs, 'jobs') +
-    countFeedItems(feeds.tech, 'tech');
-  return total > 0;
+function hasUsableTechFeed(feed) {
+  return Array.isArray(feed?.tech) && feed.tech.length > 0;
 }
 
 async function runLocalGenerate(scriptDir) {
@@ -151,6 +118,24 @@ function normalizeSelectedDepartments(rawSelection, availableDepartments) {
   };
 }
 
+function normalizeHtmlSource(source) {
+  return {
+    name: source.name,
+    category: source.category,
+    indexUrl: source.indexUrl,
+    siteUrl: source.siteUrl,
+    departmentName: source.departmentName || undefined,
+    lookbackHours: source.lookbackHours,
+    maxItems: source.maxItems,
+    sectionKeywords: Array.isArray(source.sectionKeywords) ? source.sectionKeywords : undefined
+  };
+}
+
+async function loadSourcesConfig(localRootDir) {
+  const path = join(localRootDir, 'config', 'default-sources.json');
+  return JSON.parse(await readFile(path, 'utf-8'));
+}
+
 async function main() {
   const errors = [];
 
@@ -177,58 +162,34 @@ async function main() {
   const localRootDir = join(scriptDir, '..');
   const localPromptsDir = join(localRootDir, 'prompts');
   const userPromptsDir = join(USER_DIR, 'prompts');
+  const sourcesConfig = await loadSourcesConfig(localRootDir);
 
-  const localFeedPaths = {
-    official: join(localRootDir, 'feed-official.json'),
-    departments: join(localRootDir, 'feed-departments.json'),
-    jobs: join(localRootDir, 'feed-jobs.json'),
-    tech: join(localRootDir, 'feed-tech.json')
-  };
-
-  const cachedLocalFeeds = await loadLocalFeeds(localFeedPaths);
-  let localFeeds = cachedLocalFeeds;
+  const localTechFeedPath = join(localRootDir, 'feed-tech.json');
+  const cachedLocalTechFeed = await loadLocalJSON(localTechFeedPath);
+  let techFeed = cachedLocalTechFeed;
 
   const generatedLocally = await runLocalGenerate(scriptDir);
   if (generatedLocally) {
-    const refreshedLocalFeeds = await loadLocalFeeds(localFeedPaths);
-    if (hasUsableFeeds(refreshedLocalFeeds)) {
-      localFeeds = refreshedLocalFeeds;
-    } else if (hasUsableFeeds(cachedLocalFeeds)) {
-      localFeeds = cachedLocalFeeds;
-      errors.push('Local feed refresh returned empty content, falling back to previous local feeds');
+    const refreshedLocalTechFeed = await loadLocalJSON(localTechFeedPath);
+    if (hasUsableTechFeed(refreshedLocalTechFeed)) {
+      techFeed = refreshedLocalTechFeed;
+    } else if (hasUsableTechFeed(cachedLocalTechFeed)) {
+      techFeed = cachedLocalTechFeed;
+      errors.push('Local tech feed refresh returned empty content, falling back to previous local tech feed');
     } else {
-      localFeeds = refreshedLocalFeeds;
-      errors.push('Local feed refresh returned empty content, falling back to remote feeds where available');
+      techFeed = refreshedLocalTechFeed;
+      errors.push('Local tech feed refresh returned empty content, falling back to remote tech feed where available');
     }
-  } else if (hasMissingFeeds(localFeeds)) {
-    errors.push('Local feed generation failed, falling back to GitHub feeds where available');
+  } else if (!techFeed) {
+    errors.push('Local tech feed generation failed, falling back to GitHub tech feed where available');
   } else {
-    errors.push('Local feed refresh failed, falling back to cached or remote feeds where available');
+    errors.push('Local tech feed refresh failed, falling back to cached or remote tech feed where available');
   }
 
-  let {
-    official: feedOfficial,
-    departments: feedDepartments,
-    jobs: feedJobs,
-    tech: feedTech
-  } = localFeeds;
-
-  [
-    feedOfficial,
-    feedDepartments,
-    feedJobs,
-    feedTech
-  ] = await Promise.all([
-    feedOfficial ?? loadFeedWithFallback(FEED_URLS.official, localFeedPaths.official),
-    feedDepartments ?? loadFeedWithFallback(FEED_URLS.departments, localFeedPaths.departments),
-    feedJobs ?? loadFeedWithFallback(FEED_URLS.jobs, localFeedPaths.jobs),
-    feedTech ?? loadFeedWithFallback(FEED_URLS.tech, localFeedPaths.tech)
-  ]);
-
-  if (!feedOfficial) errors.push('Could not fetch official feed');
-  if (!feedDepartments) errors.push('Could not fetch departments feed');
-  if (!feedJobs) errors.push('Could not fetch jobs feed');
-  if (!feedTech) errors.push('Could not fetch tech feed');
+  techFeed = techFeed ?? await loadFeedWithFallback(FEED_URLS.tech, localTechFeedPath);
+  if (!techFeed) {
+    errors.push('Could not fetch tech feed');
+  }
 
   const prompts = {};
   for (const filename of PROMPT_FILES) {
@@ -244,24 +205,25 @@ async function main() {
     }
   }
 
-  const availableDepartments = feedDepartments?.meta?.availableDepartments || [];
+  const officialHtmlSources = (sourcesConfig.official || [])
+    .filter(source => source.type === 'html')
+    .map(normalizeHtmlSource);
+  const availableDepartments = [...new Set((sourcesConfig.departments || []).map(source => source.departmentName || source.name))];
   const departmentSelection = normalizeSelectedDepartments(config.selectedDepartments, availableDepartments);
-  const selectedDepartments = departmentSelection.selected;
-  const selectedSet = new Set(selectedDepartments);
-  const departments = (feedDepartments?.departments || []).filter(item => selectedSet.has(item.departmentName || item.sourceName));
+  const selectedSet = new Set(departmentSelection.selected);
+  const departmentHtmlSources = (sourcesConfig.departments || [])
+    .filter(source => source.type === 'html')
+    .filter(source => selectedSet.has(source.departmentName || source.name))
+    .map(normalizeHtmlSource);
+  const jobHtmlSources = (sourcesConfig.jobs || [])
+    .filter(source => source.type === 'html')
+    .map(normalizeHtmlSource);
 
   if (departmentSelection.hasExplicitSelection && departmentSelection.selected.length === 0) {
     errors.push(`selectedDepartments did not match any available departments: ${departmentSelection.requested.join(', ')}`);
   } else if (departmentSelection.hasExplicitSelection && departmentSelection.unmatched.length > 0) {
     errors.push(`Some selectedDepartments were ignored because they are unavailable: ${departmentSelection.unmatched.join(', ')}`);
   }
-
-  const generatedCandidates = [
-    feedOfficial?.generatedAt,
-    feedDepartments?.generatedAt,
-    feedJobs?.generatedAt,
-    feedTech?.generatedAt
-  ].filter(Boolean).sort();
 
   const output = {
     status: 'ok',
@@ -270,24 +232,27 @@ async function main() {
       language: config.language || 'zh',
       frequency: config.frequency || 'daily',
       delivery: config.delivery || { method: 'stdout' },
-      selectedDepartments,
+      selectedDepartments: departmentSelection.selected,
       allowDuplicatePush: config.allowDuplicatePush !== false
     },
     departmentSelection: {
-      selected: selectedDepartments,
+      selected: departmentSelection.selected,
       requested: departmentSelection.requested,
       available: availableDepartments
     },
-    official: feedOfficial?.official || [],
-    departments,
-    jobs: feedJobs?.jobs || [],
-    tech: feedTech?.tech || [],
+    official: [],
+    departments: [],
+    jobs: [],
+    tech: techFeed?.tech || [],
+    officialHtmlSources,
+    departmentHtmlSources,
+    jobHtmlSources,
     stats: {
-      officialItems: feedOfficial?.official?.length || 0,
-      departmentItems: departments.length,
-      jobItems: feedJobs?.jobs?.length || 0,
-      techItems: feedTech?.tech?.length || 0,
-      feedGeneratedAt: generatedCandidates.at(-1) || null
+      officialHtmlSourceCount: officialHtmlSources.length,
+      departmentHtmlSourceCount: departmentHtmlSources.length,
+      jobHtmlSourceCount: jobHtmlSources.length,
+      techItems: techFeed?.tech?.length || 0,
+      feedGeneratedAt: techFeed?.generatedAt || null
     },
     prompts,
     errors: errors.length > 0 ? errors : undefined

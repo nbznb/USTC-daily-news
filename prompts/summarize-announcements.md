@@ -11,6 +11,7 @@ You are summarizing a USTC university notice, department update, event notice, o
 - If it is a lecture or academic event, extract the speaker, topic, time, and venue if present
 - If it is a job or recruitment item, highlight audience, employer or organizer, time, place, and application path
 - If it is mostly ceremonial, publicity-oriented, or generic, compress it to the minimum useful signal
+- When working from a department, official, or job entry page, follow the original link to the actual notice page before writing the summary
 
 ## Noise Filtering
 
