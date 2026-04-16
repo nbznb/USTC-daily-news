@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const STATE_PATH = join(SCRIPT_DIR, '..', 'state-feed.json');
 const SOURCES_PATH = join(SCRIPT_DIR, '..', 'config', 'default-sources.json');
-const USER_CONFIG_PATH = join(homedir(), '.openclaw', 'ustc-daily-news', 'config.json');
+const USER_CONFIG_PATH = join(homedir(), '.openclaw', 'skills', 'ustc-daily-news', 'config.json');
 const DEFAULT_LOOKBACK_HOURS = 168;
 const DEFAULT_TIMEOUT_MS = 15000;
 const MAX_ITEMS_PER_FEED = 50;

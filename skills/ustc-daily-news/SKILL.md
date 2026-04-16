@@ -7,7 +7,7 @@ metadata:
 
 # USTC Daily News
 
-Use the installed runtime at `${HOME}/.openclaw/ustc-daily-news/bin/ustc-daily-news`.
+Use the installed skill directory at `${HOME}/.openclaw/skills/ustc-daily-news`.
 
 This skill helps USTC students prepare useful digests from official updates, selected department notices, campus jobs, and tech highlights.
 
@@ -30,15 +30,15 @@ Use this skill when the user asks for:
 ## Core Commands
 
 ```bash
-${HOME}/.openclaw/ustc-daily-news/bin/ustc-daily-news prepare-digest
-${HOME}/.openclaw/ustc-daily-news/bin/ustc-daily-news generate-feed
-${HOME}/.openclaw/ustc-daily-news/bin/ustc-daily-news validate-sources
-${HOME}/.openclaw/ustc-daily-news/bin/ustc-daily-news deliver --file /absolute/path/to/digest.md
+cd ${HOME}/.openclaw/skills/ustc-daily-news/scripts && node prepare-digest.js
+cd ${HOME}/.openclaw/skills/ustc-daily-news/scripts && node generate-feed.js
+cd ${HOME}/.openclaw/skills/ustc-daily-news/scripts && node generate-feed.js --validate --report ../source-validation-report.json
+cd ${HOME}/.openclaw/skills/ustc-daily-news/scripts && node deliver.js --file /absolute/path/to/digest.md
 ```
 
 ## Workflow
 
-1. If `~/.openclaw/ustc-daily-news/config.json` is missing or `onboardingComplete !== true`, complete onboarding before normal digest work.
+1. If `~/.openclaw/skills/ustc-daily-news/config.json` is missing or `onboardingComplete !== true`, complete onboarding before normal digest work.
 2. For digest generation, always start with `prepare-digest`.
 3. Treat the JSON output from `prepare-digest` as the source of truth for config, items, links, prompts, and selected departments.
 4. Use only URLs already present in the prepared JSON unless the user explicitly asks for extra research.
@@ -76,7 +76,7 @@ Department selection rules:
 
 Config writeback rules:
 
-- Write `~/.openclaw/ustc-daily-news/config.json` when onboarding finishes.
+- Write `~/.openclaw/skills/ustc-daily-news/config.json` when onboarding finishes.
 - Keep `platform: "openclaw"` and set `onboardingComplete: true`.
 - Preserve `allowDuplicatePush` unless the user asked to change it.
 - Write `weeklyDay` only when `frequency` is `weekly`.
@@ -84,9 +84,9 @@ Config writeback rules:
 
 ## Delivery And Setup
 
-- Config file: `~/.openclaw/ustc-daily-news/config.json`
-- Secrets file: `~/.openclaw/ustc-daily-news/.env`
-- Runtime command: `~/.openclaw/ustc-daily-news/bin/ustc-daily-news`
+- Config file: `~/.openclaw/skills/ustc-daily-news/config.json`
+- Secrets file: `~/.openclaw/skills/ustc-daily-news/.env`
+- Runtime path: `~/.openclaw/skills/ustc-daily-news`
 - `stdout`: no secrets required
 - `telegram`: requires `TELEGRAM_BOT_TOKEN` in the secrets file and `delivery.chatId` in config
 - `email`: requires `RESEND_API_KEY` in the secrets file and `delivery.email` in config
@@ -95,5 +95,5 @@ If the user asks whether the OpenClaw integration is installed correctly, check 
 
 ```bash
 openclaw skills info ustc-daily-news
-${HOME}/.openclaw/ustc-daily-news/bin/ustc-daily-news help
+cd ${HOME}/.openclaw/skills/ustc-daily-news/scripts && node prepare-digest.js
 ```

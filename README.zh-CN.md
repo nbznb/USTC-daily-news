@@ -27,7 +27,7 @@
 
 ## 院系选择
 
-在 `~/.openclaw/ustc-daily-news/config.json` 中配置：
+在 `~/.openclaw/skills/ustc-daily-news/config.json` 中配置：
 
 ```json
 {
@@ -46,7 +46,7 @@
 
 ## 重复推送控制
 
-在 `~/.openclaw/ustc-daily-news/config.json` 中配置：
+在 `~/.openclaw/skills/ustc-daily-news/config.json` 中配置：
 
 ```json
 {
@@ -78,11 +78,14 @@ cd scripts && npm run package-release -- --name v1.0.0
 ## OpenClaw 安装
 
 1. 执行 `./install.sh`。
-2. 安装脚本会把运行时复制到 `~/.openclaw/ustc-daily-news/app`，把 OpenClaw skill 安装到 `~/.openclaw/skills/ustc-daily-news`，创建默认的 `~/.openclaw/ustc-daily-news/config.json`，并安装命令 `~/.openclaw/ustc-daily-news/bin/ustc-daily-news`。
-3. 用 `openclaw skills info ustc-daily-news` 确认 OpenClaw 已识别该 skill。
-4. 首次使用 skill 时会进入 onboarding。院系是必答项，语言、频率、时区、推送时间和投递方式会以“推荐默认值是否可用”的方式确认。
-5. 如需 Telegram 或邮件投递，请把相应密钥写入 `~/.openclaw/ustc-daily-news/.env`。
-6. 执行 `~/.openclaw/ustc-daily-news/bin/ustc-daily-news prepare-digest`。现在每次运行都会优先尝试本地刷新 `generate-feed`，若刷新失败，再回退到已有本地 feed 或 GitHub feed 快照。
+2. 安装脚本会把完整运行时直接放到 `~/.openclaw/skills/ustc-daily-news`，其中包含 `SKILL.md`、`config/`、`prompts/`、`scripts/`、`config.json` 和 `.env`。
+3. 重新安装时会完整覆盖 skill 运行时代码，但会保留 `config.json` 和 `.env`；如果仍有旧目录 `~/.openclaw/ustc-daily-news/`，也会从那里迁移这两个文件。
+4. 新安装成功后，旧目录 `~/.openclaw/ustc-daily-news/` 会被自动删除。
+5. 旧版自定义 `prompts/` 不会迁移；每次安装都会使用新版本自带的提示词文件。
+6. 用 `openclaw skills info ustc-daily-news` 确认 OpenClaw 已识别该 skill。
+7. 请检查 `~/.openclaw/skills/ustc-daily-news/config.json`，如需院系动态请填写 `selectedDepartments`。
+8. 如需 Telegram 或邮件投递，请把相应密钥写入 `~/.openclaw/skills/ustc-daily-news/.env`。
+9. 执行 `cd ~/.openclaw/skills/ustc-daily-news/scripts && node prepare-digest.js`。现在每次运行都会优先尝试本地刷新 `generate-feed`，若刷新失败，再回退到已有本地 feed 或 GitHub feed 快照。
 
 
 ## 系统要求

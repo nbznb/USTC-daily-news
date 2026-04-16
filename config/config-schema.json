@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "User configuration for USTC Daily News. Stored at ~/.openclaw/ustc-daily-news/config.json",
+  "description": "User configuration for USTC Daily News. Stored at ~/.openclaw/skills/ustc-daily-news/config.json",
   "type": "object",
   "properties": {
     "platform": {

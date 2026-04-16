@@ -8,7 +8,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 
-const USER_DIR = join(homedir(), '.openclaw', 'ustc-daily-news');
+const USER_DIR = join(homedir(), '.openclaw', 'skills', 'ustc-daily-news');
 const CONFIG_PATH = join(USER_DIR, 'config.json');
 const execFileAsync = promisify(execFile);
 

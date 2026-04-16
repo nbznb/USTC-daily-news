@@ -27,7 +27,7 @@ A daily or weekly digest with:
 
 ## Department Selection
 
-Configure selected departments in `~/.openclaw/ustc-daily-news/config.json`:
+Configure selected departments in `~/.openclaw/skills/ustc-daily-news/config.json`:
 
 ```json
 {
@@ -46,7 +46,7 @@ Configure selected departments in `~/.openclaw/ustc-daily-news/config.json`:
 
 ## Duplicate Push Control
 
-Configure duplicate behavior in `~/.openclaw/ustc-daily-news/config.json`:
+Configure duplicate behavior in `~/.openclaw/skills/ustc-daily-news/config.json`:
 
 ```json
 {
@@ -80,11 +80,14 @@ The command creates `versions/<name>/` in the project root and excludes `.git`, 
 ## OpenClaw Installation
 
 1. Run `./install.sh`.
-2. The installer copies the runtime into `~/.openclaw/ustc-daily-news/app`, installs the OpenClaw skill into `~/.openclaw/skills/ustc-daily-news`, creates `~/.openclaw/ustc-daily-news/config.json`, and installs the command `~/.openclaw/ustc-daily-news/bin/ustc-daily-news`.
-3. Verify OpenClaw can see the skill with `openclaw skills info ustc-daily-news`.
-4. The first skill run enters onboarding. Department selection is required; language, frequency, timezone, delivery time, and delivery method are confirmed with recommended defaults.
-5. If you want Telegram or email delivery, add the required secrets to `~/.openclaw/ustc-daily-news/.env`.
-6. Run `~/.openclaw/ustc-daily-news/bin/ustc-daily-news prepare-digest`. Each run attempts a fresh local `generate-feed` refresh first, then falls back to cached local files or GitHub snapshots if refresh fails.
+2. The installer places the full runtime directly in `~/.openclaw/skills/ustc-daily-news`, including `SKILL.md`, `config/`, `prompts/`, `scripts/`, `config.json`, and `.env`.
+3. Reinstalls fully replace the skill runtime files, but preserve `config.json` and `.env` by migrating them from either the current skill directory or the legacy `~/.openclaw/ustc-daily-news/` directory.
+4. If the legacy `~/.openclaw/ustc-daily-news/` runtime exists, the installer removes it after the new install succeeds.
+5. Legacy custom prompt overrides are not migrated; `prompts/` is refreshed from the new release on each install.
+6. Verify OpenClaw can see the skill with `openclaw skills info ustc-daily-news`.
+7. Review `~/.openclaw/skills/ustc-daily-news/config.json` and set `selectedDepartments` if you want department updates in the digest.
+8. If you want Telegram or email delivery, add the required secrets to `~/.openclaw/skills/ustc-daily-news/.env`.
+9. Run `cd ~/.openclaw/skills/ustc-daily-news/scripts && node prepare-digest.js`. Each run attempts a fresh local `generate-feed` refresh first, then falls back to cached local files or GitHub snapshots if refresh fails.
 
 ## Full Bash Setup
 
@@ -93,7 +96,7 @@ Minimal end-to-end setup with in-chat / stdout delivery:
 ```bash
 ./install.sh
 
-cat > ~/.openclaw/ustc-daily-news/config.json <<'EOF'
+cat > ~/.openclaw/skills/ustc-daily-news/config.json <<'EOF'
 {
   "platform": "openclaw",
   "language": "zh",
@@ -109,17 +112,16 @@ cat > ~/.openclaw/ustc-daily-news/config.json <<'EOF'
 }
 EOF
 
-: > ~/.openclaw/ustc-daily-news/.env
+: > ~/.openclaw/skills/ustc-daily-news/.env
 
 openclaw skills info ustc-daily-news
-~/.openclaw/ustc-daily-news/bin/ustc-daily-news help
-~/.openclaw/ustc-daily-news/bin/ustc-daily-news prepare-digest
+cd ~/.openclaw/skills/ustc-daily-news/scripts && node prepare-digest.js
 ```
 
 If you want Telegram or email delivery, replace the config and `.env` with your own values:
 
 ```bash
-cat > ~/.openclaw/ustc-daily-news/config.json <<'EOF'
+cat > ~/.openclaw/skills/ustc-daily-news/config.json <<'EOF'
 {
   "platform": "openclaw",
   "language": "bilingual",
@@ -137,7 +139,7 @@ cat > ~/.openclaw/ustc-daily-news/config.json <<'EOF'
 }
 EOF
 
-cat > ~/.openclaw/ustc-daily-news/.env <<'EOF'
+cat > ~/.openclaw/skills/ustc-daily-news/.env <<'EOF'
 TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
 # For email delivery instead, change delivery.method to "email" and use:
 # RESEND_API_KEY=YOUR_RESEND_API_KEY
