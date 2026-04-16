@@ -27,6 +27,8 @@ const PROMPT_FILES = [
   'digest-intro.md',
   'translate.md'
 ];
+const DIGEST_FOOTER_NOTE =
+  'Reminder: no departments are currently selected. Add formal department names to selectedDepartments in ~/.openclaw/skills/ustc-daily-news/config.json if you want department updates in this digest.';
 
 async function fetchJSON(url) {
   try {
@@ -249,6 +251,7 @@ async function main() {
   const selectedDepartments = departmentSelection.selected;
   const selectedSet = new Set(selectedDepartments);
   const departments = (feedDepartments?.departments || []).filter(item => selectedSet.has(item.departmentName || item.sourceName));
+  const digestFooterNote = departmentSelection.hasExplicitSelection ? null : DIGEST_FOOTER_NOTE;
 
   if (departmentSelection.hasExplicitSelection && departmentSelection.selected.length === 0) {
     errors.push(`selectedDepartments did not match any available departments: ${departmentSelection.requested.join(', ')}`);
@@ -278,6 +281,7 @@ async function main() {
       requested: departmentSelection.requested,
       available: availableDepartments
     },
+    digestFooterNote,
     official: feedOfficial?.official || [],
     departments,
     jobs: feedJobs?.jobs || [],

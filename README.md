@@ -40,6 +40,7 @@ Configure selected departments in `~/.openclaw/skills/ustc-daily-news/config.jso
 - Onboarding matches departments against the currently supported sources and may resolve common short forms or high-confidence fuzzy input such as `少院` -> `少年班学院`
 - The skill only interrupts when there is no reliable match or when multiple candidates are plausible
 - If `selectedDepartments` is empty or omitted, no department sources are fetched and the departments section stays empty
+- If `selectedDepartments` is empty or omitted, the digest also ends with a reminder to configure `selectedDepartments`
 - You can add multiple formal department names manually
 - Only selected departments are passed into digest generation
 - If you explicitly set `selectedDepartments` but none match, the departments section becomes empty (no fallback to all departments)

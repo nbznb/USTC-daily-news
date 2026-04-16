@@ -50,4 +50,6 @@ https://example.com/original-link
 - Do not mention categories that have no items
 - Do not add a “no updates” line inside otherwise non-empty digests
 - If you keep a mostly ceremonial or political item, compress it hard and place it after student-relevant items in that section
+- If the prepared JSON includes a non-empty `digestFooterNote`, output it verbatim at the very end of the digest immediately before the final signature line
+- If `digestFooterNote` is null or empty, do not add any department-selection reminder
 - At the end add: "Generated through USTC Daily News"

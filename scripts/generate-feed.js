@@ -242,6 +242,13 @@ function extractDate(text) {
   return normalizeDateString(text);
 }
 
+function extractDateFromUrl(url = '') {
+  const match = String(url).match(/\/(20\d{2})\/(0[1-9]|1[0-2])([0-3]\d)\//);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  return normalizeDateString(`${year}-${month}-${day}`);
+}
+
 function extractPreferredDate(html, regexes) {
   for (const regex of regexes) {
     const match = html.match(regex);
@@ -290,16 +297,41 @@ function passesSourceFilters(item, source) {
   return true;
 }
 
-function dedupeCandidates(items) {
-  const seen = new Set();
-  const deduped = [];
-  for (const item of items) {
-    const key = item.url || item.guid || item.title;
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    deduped.push(item);
+function canonicalizeUrl(url = '') {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = '';
+    if (parsed.pathname !== '/') {
+      parsed.pathname = parsed.pathname.replace(/\/+$/, '');
+    }
+    return parsed.toString();
+  } catch {
+    return String(url || '').replace(/#.*$/, '').replace(/\/+$/, '');
   }
-  return deduped;
+}
+
+function dedupeCandidates(items) {
+  const dedupedByKey = new Map();
+  for (const item of items) {
+    const key = item.url ? canonicalizeUrl(item.url) : (item.guid || item.title);
+    if (!key) continue;
+
+    const existing = dedupedByKey.get(key);
+    if (!existing) {
+      dedupedByKey.set(key, item);
+      continue;
+    }
+
+    const existingTitleLength = cleanTitle(existing.title || '').length;
+    const itemTitleLength = cleanTitle(item.title || '').length;
+    const existingScore = existing.candidateScore || 0;
+    const itemScore = item.candidateScore || 0;
+
+    if (itemTitleLength > existingTitleLength || (itemTitleLength === existingTitleLength && itemScore > existingScore)) {
+      dedupedByKey.set(key, item);
+    }
+  }
+  return [...dedupedByKey.values()];
 }
 
 function shuffleItems(items) {
@@ -323,19 +355,38 @@ function scoreCandidate(title, url, nearbyText, source) {
   return score;
 }
 
+function extractAnchorDisplayTitle(anchorHtml = '') {
+  const headingMatch = String(anchorHtml).match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i);
+  if (headingMatch?.[1]) {
+    return cleanTitle(headingMatch[1]);
+  }
+  return cleanTitle(anchorHtml);
+}
+
 function parseScoredLinks(html, source, options = {}) {
   const items = [];
   const windowSize = options.windowSize || 480;
   const minScore = options.minScore || 6;
   const limitMultiplier = options.limitMultiplier || 6;
-  const regex = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const preferTitleAttribute = options.preferTitleAttribute || false;
+  const regex = /<a([^>]+)href=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/a>/gi;
   let match;
   while ((match = regex.exec(html)) !== null) {
-    const url = absolutizeUrl(source.siteUrl || source.indexUrl, decodeHtml(match[1]));
-    const title = cleanTitle(match[2], source.name);
+    const attrs = `${match[1]} ${match[3]}`;
+    const url = absolutizeUrl(source.siteUrl || source.indexUrl, decodeHtml(match[2]));
+    const visibleTitle = extractAnchorDisplayTitle(match[4]);
+    const titleAttribute = cleanTitle(attrs.match(/\btitle=["']([^"']+)["']/i)?.[1] || '', source.name);
+    const title = preferTitleAttribute && titleAttribute && (
+      !visibleTitle
+      || visibleTitle.includes('...')
+      || /var\s+\w+\s*=|document\.write|^\s*>?\s*$/.test(visibleTitle)
+      || titleAttribute.length > visibleTitle.length
+    )
+      ? titleAttribute
+      : (visibleTitle || titleAttribute);
     const nearbyHtml = html.slice(Math.max(0, match.index - windowSize), Math.min(html.length, match.index + windowSize));
     const nearbyText = stripTags(nearbyHtml);
-    const publishedAt = extractDate(nearbyText);
+    const publishedAt = extractDate(nearbyText) || extractDateFromUrl(url);
     const candidateScore = scoreCandidate(title, url, nearbyText, source);
     items.push({ title, url, guid: url, publishedAt, summary: '', candidateScore });
   }
@@ -364,6 +415,15 @@ function parseUstcNewsLinks(html, source) {
 
 function parseUstcDepartmentHomeLinks(html, source) {
   return parseScoredLinks(html, source, { windowSize: 640, minScore: 8, limitMultiplier: 8 });
+}
+
+function parseUstcDepartmentListLinks(html, source) {
+  return parseScoredLinks(html, source, {
+    windowSize: 520,
+    minScore: 5,
+    limitMultiplier: 10,
+    preferTitleAttribute: true
+  });
 }
 
 function isUstcSpecialRecruitmentListSource(html, source) {
@@ -636,6 +696,40 @@ async function fetchResponse(url) {
   });
 }
 
+function getScrapeIndexUrls(source) {
+  const urls = Array.isArray(source.indexUrls) && source.indexUrls.length > 0
+    ? source.indexUrls
+    : [source.indexUrl];
+  return [...new Set(urls.map(url => String(url || '').trim()).filter(Boolean))];
+}
+
+function getFetchFallbackUrls(url) {
+  const urls = [url];
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'https:' && parsed.hostname.endsWith('.ustc.edu.cn')) {
+      parsed.protocol = 'http:';
+      urls.push(parsed.toString());
+    }
+  } catch {
+    // Keep the original URL only when parsing fails.
+  }
+  return urls;
+}
+
+async function fetchResponseWithFallback(url) {
+  let lastError = null;
+  for (const candidateUrl of getFetchFallbackUrls(url)) {
+    try {
+      const res = await fetchResponse(candidateUrl);
+      return { res, url: candidateUrl };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('fetch failed');
+}
+
 function makeUniqueId(source, rawId) {
   if (!rawId) return null;
   return `${source.category}:${source.name}:${rawId}`;
@@ -723,24 +817,52 @@ const LIST_PARSERS = {
   teach_notice_links: parseTeachNoticeLinks,
   ustc_news_links: parseUstcNewsLinks,
   ustc_department_home_links: parseUstcDepartmentHomeLinks,
+  ustc_department_list_links: parseUstcDepartmentListLinks,
   ustc_job_links: parseUstcJobLinks
 };
 
 async function fetchScrapeItems(source, state, options) {
   const report = initSourceReport(source);
-  const res = await fetchResponse(source.indexUrl);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const html = await res.text();
-
   const parser = LIST_PARSERS[source.listParser];
   if (!parser) {
     throw new Error(`Unknown list parser: ${source.listParser}`);
   }
 
-  const candidates = await parser(html, source);
-  report.candidateCount = candidates.length;
+  const candidates = [];
+  const indexUrls = getScrapeIndexUrls(source);
+  let successfulFetches = 0;
 
-  const shortlisted = candidates.slice(0, Math.max((source.maxItems || 5) * 4, 8));
+  for (const indexUrl of indexUrls) {
+    try {
+      const { res, url: fetchedUrl } = await fetchResponseWithFallback(indexUrl);
+      if (!res.ok) {
+        report.warnings.push(`${indexUrl}: HTTP ${res.status}`);
+        continue;
+      }
+      const html = await res.text();
+      const parseSource = {
+        ...source,
+        indexUrl: fetchedUrl,
+        siteUrl: source.siteUrl || new URL(fetchedUrl).origin
+      };
+      candidates.push(...await parser(html, parseSource));
+      successfulFetches += 1;
+      if (fetchedUrl !== indexUrl) {
+        report.warnings.push(`${indexUrl}: fetched via fallback ${fetchedUrl}`);
+      }
+    } catch (error) {
+      report.warnings.push(`${indexUrl}: ${normalizeErrorMessage(error)}`);
+    }
+  }
+
+  if (successfulFetches === 0) {
+    throw new Error(report.warnings.join('; ') || 'No index URLs could be fetched');
+  }
+
+  const dedupedCandidates = dedupeCandidates(candidates);
+  report.candidateCount = dedupedCandidates.length;
+
+  const shortlisted = dedupedCandidates.slice(0, Math.max((source.maxItems || 5) * 4, 8));
   const evaluated = [];
 
   for (const item of shortlisted) {
@@ -892,7 +1014,7 @@ function buildFeedPayload(categoryDef, items, errors, sources, allSources = sour
   };
 
   if (categoryDef.key === 'departments') {
-    payload.meta.availableDepartments = allSources.map(source => source.departmentName || source.name);
+    payload.meta.availableDepartments = [...new Set(allSources.map(source => source.departmentName || source.name))];
   }
 
   return payload;
@@ -908,6 +1030,37 @@ function buildCategorySummary(items, reports) {
     emptySources,
     errorSources
   };
+}
+
+function normalizeItemTitleKey(title = '') {
+  return cleanTitle(title).replace(/\s+/g, '').toLowerCase();
+}
+
+function buildFeedItemDedupeKey(item) {
+  if (item?.url) return `url:${canonicalizeUrl(item.url)}`;
+  return `title:${item.departmentName || item.sourceName || ''}:${normalizeItemTitleKey(item?.title || '')}`;
+}
+
+function dedupeFeedItems(items) {
+  const bestByKey = new Map();
+  for (const item of items) {
+    const key = buildFeedItemDedupeKey(item);
+    const existing = bestByKey.get(key);
+    if (!existing) {
+      bestByKey.set(key, item);
+      continue;
+    }
+
+    const existingTime = existing.publishedAt ? new Date(existing.publishedAt).getTime() : -Infinity;
+    const itemTime = item.publishedAt ? new Date(item.publishedAt).getTime() : -Infinity;
+    const existingPriority = existing.sourcePriority || 0;
+    const itemPriority = item.sourcePriority || 0;
+
+    if (itemTime > existingTime || (itemTime === existingTime && itemPriority > existingPriority)) {
+      bestByKey.set(key, item);
+    }
+  }
+  return [...bestByKey.values()];
 }
 
 async function main() {
@@ -943,14 +1096,15 @@ async function main() {
       errors.push(`departments: No department sources match selectedDepartments: ${selectedDepartments.join(', ')}`);
     }
     const { items, reports } = await fetchCategoryContent(categoryDef.key, activeSources, state, options, errors);
+    const dedupedItems = categoryDef.key === 'departments' ? dedupeFeedItems(items) : items;
     categoryResults[categoryDef.key] = {
-      items,
+      items: dedupedItems,
       reports,
       sources: activeSources,
       allSources: categorySources
     };
     report.categories[categoryDef.key] = {
-      ...buildCategorySummary(items, reports),
+      ...buildCategorySummary(dedupedItems, reports),
       sourceCount: activeSources.length,
       sources: reports
     };
