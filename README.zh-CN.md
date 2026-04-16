@@ -39,7 +39,7 @@
 - 首次安装生成的配置会把 `selectedDepartments` 留空，并由 skill 在 onboarding 中要求用户明确院系偏好
 - onboarding 会优先按当前已接入信息源匹配院系，支持常见简称或高置信模糊表达，如“少院”匹配“少年班学院”
 - 只有在无匹配或存在多个候选时才会提示用户确认；匹配成功时会直接采用
-- onboarding 完成后，如果 `selectedDepartments` 仍为空，`prepare-digest` 会按现有实现回退为“包含当前可用的全部院系”
+- 如果 `selectedDepartments` 为空或未配置，则不会抓取任何院系源，摘要中的院系模块也会保持为空
 - 可以手动添加多个院系正式名称
 - 摘要生成阶段只会注入所选院系的内容
 - 如果显式设置了 `selectedDepartments` 但全部不匹配，院系模块会为空，不会回退到全部院系

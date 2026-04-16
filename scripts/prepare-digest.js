@@ -138,7 +138,7 @@ function normalizeSelectedDepartments(rawSelection, availableDepartments) {
     return {
       hasExplicitSelection: false,
       requested,
-      selected: [...availableDepartments],
+      selected: [],
       unmatched
     };
   }

@@ -669,7 +669,7 @@ function filterSourcesForCategory(categoryKey, sources, userConfig) {
 
   const selectedDepartments = normalizeSelectedDepartments(userConfig.selectedDepartments);
   if (selectedDepartments.length === 0) {
-    return sources;
+    return [];
   }
 
   const selectedSet = new Set(selectedDepartments);

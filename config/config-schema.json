@@ -38,7 +38,7 @@
     },
     "selectedDepartments": {
       "type": "array",
-      "description": "Department names to include in the digest. The installer leaves this empty until onboarding confirms the user's choices. During digest preparation, an omitted or empty list includes all available departments.",
+      "description": "Department names to include in the digest. The installer leaves this empty until onboarding confirms the user's choices. During digest preparation, an omitted or empty list means no departments are included.",
       "default": [],
       "minItems": 0,
       "uniqueItems": true,
