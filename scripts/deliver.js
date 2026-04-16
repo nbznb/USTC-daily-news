@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFile } from 'fs/promises';
+import { mkdir, readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
@@ -9,6 +9,24 @@ import { config as loadEnv } from 'dotenv';
 const USER_DIR = join(homedir(), '.openclaw', 'skills', 'ustc-daily-news');
 const CONFIG_PATH = join(USER_DIR, 'config.json');
 const ENV_PATH = join(USER_DIR, '.env');
+const REPORT_DIR = join(USER_DIR, 'report');
+
+function formatReportTimestamp(date = new Date()) {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}${month}${day}-${hours}${minutes}${seconds}`;
+}
+
+async function persistDigestReport(text) {
+  await mkdir(REPORT_DIR, { recursive: true });
+  const reportPath = join(REPORT_DIR, `${formatReportTimestamp()}.md`);
+  await writeFile(reportPath, text, 'utf-8');
+  return reportPath;
+}
 
 async function getDigestText() {
   const args = process.argv.slice(2);
@@ -124,6 +142,8 @@ async function main() {
   }
 
   try {
+    const reportPath = await persistDigestReport(digestText);
+
     switch (delivery.method) {
       case 'telegram': {
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -131,7 +151,7 @@ async function main() {
         if (!botToken) throw new Error('TELEGRAM_BOT_TOKEN not found in .env');
         if (!chatId) throw new Error('delivery.chatId not found in config.json');
         await sendTelegram(digestText, botToken, chatId);
-        console.log(JSON.stringify({ status: 'ok', method: 'telegram', message: 'Digest sent to Telegram' }));
+        console.log(JSON.stringify({ status: 'ok', method: 'telegram', message: 'Digest sent to Telegram', reportPath }));
         break;
       }
       case 'email': {
@@ -140,7 +160,7 @@ async function main() {
         if (!apiKey) throw new Error('RESEND_API_KEY not found in .env');
         if (!toEmail) throw new Error('delivery.email not found in config.json');
         await sendEmail(digestText, apiKey, toEmail);
-        console.log(JSON.stringify({ status: 'ok', method: 'email', message: `Digest sent to ${toEmail}` }));
+        console.log(JSON.stringify({ status: 'ok', method: 'email', message: `Digest sent to ${toEmail}`, reportPath }));
         break;
       }
       case 'stdout':

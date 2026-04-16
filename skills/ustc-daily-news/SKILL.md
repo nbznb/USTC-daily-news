@@ -16,6 +16,8 @@ This skill helps USTC students prepare useful digests from official updates, sel
 - Handle normal USTC Daily News work in the current primary agent by default.
 - Do not delegate routine digest generation, config inspection, onboarding, delivery setup, delivery checks, or installation checks to a subagent.
 - Consider a subagent only when the user explicitly asks for multi-agent/delegated work, or when a separate parallel investigation is clearly necessary.
+- When OpenClaw runs this skill, always persist the final digest to `${HOME}/.openclaw/skills/ustc-daily-news/report/<time>.md` before or while delivering it.
+- If a subagent returns a finished digest or daily report, preserve that text exactly. Do not proactively polish, rewrite, reorder, translate, or normalize the returned report before saving or delivering it.
 
 ## When To Use
 
@@ -44,6 +46,7 @@ cd ${HOME}/.openclaw/skills/ustc-daily-news/scripts && node deliver.js --file /a
 4. Use only URLs already present in the prepared JSON unless the user explicitly asks for extra research.
 5. If `errors` is present but the JSON still contains usable items, continue with the available content and mention the partial failure briefly.
 6. Keep the final digest in the standard order: official, departments, jobs, then tech news. Skip empty sections and keep each section concise.
+7. If a subagent was used only to produce the final digest markdown, treat the subagent output as the final report body and pass it through unchanged.
 
 ## Digest Rules
 
