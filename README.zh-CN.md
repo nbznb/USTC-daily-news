@@ -36,8 +36,11 @@
 }
 ```
 
-- 默认包含当前可用的全部院系
-- 可以手动添加多个院系名称
+- 首次安装生成的配置会把 `selectedDepartments` 留空，并由 skill 在 onboarding 中要求用户明确院系偏好
+- onboarding 会优先按当前已接入信息源匹配院系，支持常见简称或高置信模糊表达，如“少院”匹配“少年班学院”
+- 只有在无匹配或存在多个候选时才会提示用户确认；匹配成功时会直接采用
+- onboarding 完成后，如果 `selectedDepartments` 仍为空，`prepare-digest` 会按现有实现回退为“包含当前可用的全部院系”
+- 可以手动添加多个院系正式名称
 - 摘要生成阶段只会注入所选院系的内容
 - 如果显式设置了 `selectedDepartments` 但全部不匹配，院系模块会为空，不会回退到全部院系
 
@@ -77,7 +80,7 @@ cd scripts && npm run package-release -- --name v1.0.0
 1. 执行 `./install.sh`。
 2. 安装脚本会把运行时复制到 `~/.openclaw/ustc-daily-news/app`，把 OpenClaw skill 安装到 `~/.openclaw/skills/ustc-daily-news`，创建默认的 `~/.openclaw/ustc-daily-news/config.json`，并安装命令 `~/.openclaw/ustc-daily-news/bin/ustc-daily-news`。
 3. 用 `openclaw skills info ustc-daily-news` 确认 OpenClaw 已识别该 skill。
-4. 检查并按需修改 `~/.openclaw/ustc-daily-news/config.json`，例如 `language`、`frequency`、`selectedDepartments` 和投递方式。
+4. 首次使用 skill 时会进入 onboarding。院系是必答项，语言、频率、时区、推送时间和投递方式会以“推荐默认值是否可用”的方式确认。
 5. 如需 Telegram 或邮件投递，请把相应密钥写入 `~/.openclaw/ustc-daily-news/.env`。
 6. 执行 `~/.openclaw/ustc-daily-news/bin/ustc-daily-news prepare-digest`。现在每次运行都会优先尝试本地刷新 `generate-feed`，若刷新失败，再回退到已有本地 feed 或 GitHub feed 快照。
 

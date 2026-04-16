@@ -36,8 +36,11 @@ Configure selected departments in `~/.openclaw/ustc-daily-news/config.json`:
 }
 ```
 
-- The default selection includes all available departments
-- You can add multiple department names manually
+- The installer leaves `selectedDepartments` empty and lets the skill collect the user's department choices during onboarding
+- Onboarding matches departments against the currently supported sources and may resolve common short forms or high-confidence fuzzy input such as `少院` -> `少年班学院`
+- The skill only interrupts when there is no reliable match or when multiple candidates are plausible
+- After onboarding, if `selectedDepartments` is still empty, `prepare-digest` keeps the current runtime behavior and includes all available departments
+- You can add multiple formal department names manually
 - Only selected departments are passed into digest generation
 - If you explicitly set `selectedDepartments` but none match, the departments section becomes empty (no fallback to all departments)
 
@@ -79,7 +82,7 @@ The command creates `versions/<name>/` in the project root and excludes `.git`, 
 1. Run `./install.sh`.
 2. The installer copies the runtime into `~/.openclaw/ustc-daily-news/app`, installs the OpenClaw skill into `~/.openclaw/skills/ustc-daily-news`, creates `~/.openclaw/ustc-daily-news/config.json`, and installs the command `~/.openclaw/ustc-daily-news/bin/ustc-daily-news`.
 3. Verify OpenClaw can see the skill with `openclaw skills info ustc-daily-news`.
-4. Review `~/.openclaw/ustc-daily-news/config.json` and adjust `language`, `frequency`, `selectedDepartments`, and delivery settings as needed.
+4. The first skill run enters onboarding. Department selection is required; language, frequency, timezone, delivery time, and delivery method are confirmed with recommended defaults.
 5. If you want Telegram or email delivery, add the required secrets to `~/.openclaw/ustc-daily-news/.env`.
 6. Run `~/.openclaw/ustc-daily-news/bin/ustc-daily-news prepare-digest`. Each run attempts a fresh local `generate-feed` refresh first, then falls back to cached local files or GitHub snapshots if refresh fails.
 

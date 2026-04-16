@@ -38,7 +38,7 @@
     },
     "selectedDepartments": {
       "type": "array",
-      "description": "Department names to include in the digest. When omitted or empty, all available departments are included.",
+      "description": "Department names to include in the digest. The installer leaves this empty until onboarding confirms the user's choices. During digest preparation, an omitted or empty list includes all available departments.",
       "default": [],
       "minItems": 0,
       "uniqueItems": true,
@@ -69,7 +69,8 @@
     },
     "onboardingComplete": {
       "type": "boolean",
-      "default": false
+      "default": false,
+      "description": "Whether first-run onboarding has collected and confirmed the user's core preferences, especially department selection."
     }
   }
 }

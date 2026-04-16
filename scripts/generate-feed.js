@@ -700,6 +700,7 @@ async function fetchFeedItems(source, state, options) {
     selected.push({
       source: source.category,
       sourceName: source.name,
+      sourcePriority: source.priority || 0,
       departmentName: source.departmentName || undefined,
       title: cleanTitle(item.title, source.name),
       url: item.url,
@@ -800,6 +801,7 @@ async function fetchScrapeItems(source, state, options) {
       item: {
         source: source.category,
         sourceName: source.name,
+        sourcePriority: source.priority || 0,
         departmentName: source.departmentName || undefined,
         title: article.title || cleanTitle(item.title, source.name),
         url: item.url,
@@ -862,10 +864,14 @@ async function fetchCategoryContent(categoryKey, sources, state, options, errors
   const orderedResults = categoryKey === 'tech'
     ? shuffleItems(results)
     : [...results].sort((a, b) => {
-      if (a.publishedAt && b.publishedAt) return new Date(b.publishedAt) - new Date(a.publishedAt);
+      if (a.publishedAt && b.publishedAt) {
+        const dateDiff = new Date(b.publishedAt) - new Date(a.publishedAt);
+        if (dateDiff !== 0) return dateDiff;
+      }
       if (a.publishedAt) return -1;
       if (b.publishedAt) return 1;
-      return 0;
+      if ((b.sourcePriority || 0) !== (a.sourcePriority || 0)) return (b.sourcePriority || 0) - (a.sourcePriority || 0);
+      return a.title.localeCompare(b.title, 'zh-Hans-CN');
     });
 
   return { items: orderedResults.slice(0, MAX_ITEMS_PER_FEED), reports };

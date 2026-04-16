@@ -1,18 +1,34 @@
 {
   "official": [
     {
-      "name": "USTC News",
+      "name": "USTC News Browse",
       "category": "official",
       "type": "scrape",
-      "indexUrl": "https://news.ustc.edu.cn/",
+      "indexUrl": "https://news.ustc.edu.cn/xwbl.htm",
       "siteUrl": "https://news.ustc.edu.cn/",
       "listParser": "ustc_news_links",
       "articleParser": "generic_article",
       "lookbackHours": 168,
-      "maxItems": 8,
+      "maxItems": 4,
       "contentMode": "article",
-      "urlAllowPattern": "info/\\d+/\\d+\\.htm$",
-      "urlDenyPattern": "(index\\.htm$|/ztxw\\.htm$|/xwbl\\.htm$|/djwh\\.htm$|/rcpy\\.htm$|/mtgz\\.htm$|/yxkd1/|/zgkdb/)"
+      "urlAllowPattern": "info/1055/\\d+\\.htm$",
+      "urlDenyPattern": "(index\\.htm$|/xwbl(?:/\\d+)?\\.htm$|/mtgz(?:/\\d+)?\\.htm$|/djwh(?:/\\d+)?\\.htm$|/rcpy(?:/\\d+)?\\.htm$|/kyjz(?:/\\d+)?\\.htm$|/ztxw(?:/\\d+)?\\.htm$|/yxkd1/|/zgkdb/)",
+      "priority": 10
+    },
+    {
+      "name": "USTC Media Coverage",
+      "category": "official",
+      "type": "scrape",
+      "indexUrl": "https://news.ustc.edu.cn/mtgz.htm",
+      "siteUrl": "https://news.ustc.edu.cn/",
+      "listParser": "ustc_news_links",
+      "articleParser": "generic_article",
+      "lookbackHours": 168,
+      "maxItems": 6,
+      "contentMode": "article",
+      "urlAllowPattern": "info/1056/\\d+\\.htm$",
+      "urlDenyPattern": "(index\\.htm$|/xwbl(?:/\\d+)?\\.htm$|/mtgz(?:/\\d+)?\\.htm$|/djwh(?:/\\d+)?\\.htm$|/rcpy(?:/\\d+)?\\.htm$|/kyjz(?:/\\d+)?\\.htm$|/ztxw(?:/\\d+)?\\.htm$|/yxkd1/|/zgkdb/)",
+      "priority": 20
     },
     {
       "name": "USTC Academic Affairs",

@@ -68,6 +68,50 @@ ${HOME}/.openclaw/ustc-daily-news/bin/ustc-daily-news deliver --file /absolute/p
 - Secrets file: `~/.openclaw/ustc-daily-news/.env`
 - Runtime command: `~/.openclaw/ustc-daily-news/bin/ustc-daily-news`
 
+## First-run onboarding
+
+If `~/.openclaw/ustc-daily-news/config.json` is missing or `onboardingComplete !== true`, start onboarding before normal digest work.
+
+Keep the onboarding brief and precise.
+
+### Onboarding order
+
+1. Confirm digest language with a recommended default of `zh`.
+2. Confirm frequency with a recommended default of `daily`.
+3. Confirm timezone with a recommended default of `Asia/Shanghai`.
+4. Confirm delivery time with a recommended default of `08:00`.
+5. If the user chooses `weekly`, ask for `weeklyDay`.
+6. Confirm delivery method with a recommended default of `stdout`.
+7. Require department selection before marking onboarding complete.
+
+### Department selection rules
+
+- Department choice is required. Do not substitute a test default or silently keep `selectedDepartments` empty as a user decision.
+- Prefer department names from `departmentSelection.available` in `prepare-digest` output.
+- If that list is unavailable, fall back to the department names in `config/default-sources.json`.
+- Accept exact matches directly.
+- Accept clear short forms, aliases, or high-confidence fuzzy matches directly. Example: `少院` -> `少年班学院`.
+- Only interrupt when the input cannot be matched reliably or when multiple candidates are plausible.
+- If matching fails, explain that the department is not supported by the current sources and ask the user to choose from the available departments.
+- If matching is ambiguous, show the small candidate set and ask the user to choose.
+- If matching succeeds, continue without announcing a separate success message.
+- Always write formal department names into `selectedDepartments`.
+
+### Delivery setup notes
+
+- `stdout`: no secrets required.
+- `telegram`: requires `TELEGRAM_BOT_TOKEN` in `~/.openclaw/ustc-daily-news/.env` and `delivery.chatId` in config.
+- `email`: requires `RESEND_API_KEY` in `~/.openclaw/ustc-daily-news/.env` and `delivery.email` in config.
+
+### Config writeback
+
+When onboarding finishes, write `~/.openclaw/ustc-daily-news/config.json` with the confirmed values and set `onboardingComplete` to `true`.
+
+- Keep `platform: "openclaw"`.
+- Preserve `allowDuplicatePush` unless the user asked to change it.
+- For `weeklyDay`, write it only when `frequency` is `weekly`.
+- For delivery-specific fields, write only the fields required by the selected method.
+
 If the user asks whether the OpenClaw integration is installed correctly, check both:
 
 ```bash

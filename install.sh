@@ -129,7 +129,7 @@ if [ ! -f "${CONFIG_PATH}" ]; then
   "timezone": "Asia/Shanghai",
   "frequency": "daily",
   "deliveryTime": "08:00",
-  "selectedDepartments": ["少年班学院"],
+  "selectedDepartments": [],
   "allowDuplicatePush": true,
   "delivery": {
     "method": "stdout"
@@ -164,7 +164,7 @@ unset SKILL_ELIGIBLE
 echo
 echo "OpenClaw install is ready."
 echo "Next steps:"
-echo "  1. Review ${CONFIG_PATH} and adjust language, schedule, and departments."
+echo "  1. Start the skill and complete onboarding, especially department selection."
 echo "  2. Add Telegram or Resend secrets to ${ENV_PATH} if needed."
 echo "  3. Run: ${WRAPPER_PATH} prepare-digest"
 echo "  4. Check: openclaw skills info ${SKILL_NAME}"
