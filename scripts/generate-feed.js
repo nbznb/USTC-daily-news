@@ -15,6 +15,74 @@ const DEFAULT_TIMEOUT_MS = 15000;
 const MAX_ITEMS_PER_FEED = 50;
 const STATE_RETENTION_DAYS = 14;
 const USER_AGENT = 'USTCDailyNews/1.0 (digest aggregator)';
+const SUMMARY_TARGET_BY_CATEGORY = {
+  official: { min: 200, max: 320 },
+  departments: { min: 200, max: 320 },
+  jobs: { min: 220, max: 380 },
+  tech: { min: 200, max: 340 }
+};
+const SUMMARY_PASSTHROUGH_MIN_LENGTH = 200;
+const SUMMARY_BOUNDARY_CHARS = new Set(['。', '！', '？', '；', '.', '!', '?', ';']);
+const SUMMARY_METRIC_REGEX = /\d+(?:\.\d+)?(?:%|人|项|篇|个|倍|轮|年|月|天|小时|分钟|万元|亿元|万美元|美金|次)/;
+const SUMMARY_TIME_REGEX = /(20\d{2}[年/-]\d{1,2}[月/-]\d{1,2}日?|(?:\d{1,2}月\d{1,2}日)|(?:\d{1,2}:\d{2})|(?:上午|下午|晚上|中午|凌晨|周[一二三四五六日天])|截止|报名时间|招聘会时间|举办时间)/;
+const SUMMARY_LOCATION_REGEX = /(地点|地址|教室|报告厅|会议室|礼堂|会场|学生活动中心|西区|东区|线上|腾讯会议|venue)/i;
+const SUMMARY_CONTACT_REGEX = /(联系人|电话|邮箱|邮件|网址|官网|扫码|微信|公众号|链接)/;
+const GENERIC_POSITIVE_PATTERNS = [
+  /报名|申请|投递|提交|注册|截止|开放|招募|招聘|实习|岗位|职位|要求|面向|资格/,
+  /讲座|报告|论坛|会议|答辩|课程|考试|通知|公示|奖学金|宣讲/,
+  /发布|上线|开源|模型|产品|功能|研究|论文|实验|性能|融资|平台|更新/i
+];
+const GENERIC_NEGATIVE_PATTERNS = [
+  /记者[:：]|编辑[:：]|文章来源|原文链接|版权所有|打印|关闭|上一篇|下一篇|来源[:：]|供图|受访单位/,
+  /活动旨在|旨在搭建|气氛热烈|受到.*好评|持续深化|品牌活动|一致认为|掌声/,
+  /价值观|企业文化|愿景|使命|精神|要求|贡献力量|奋勇前行|逐梦成长/,
+  /中国青年报客户端讯|近日，记者|近年来|一直以来|长期以来|https?:\/\/|www\.|cn\/htmlpaper/
+];
+const CATEGORY_POSITIVE_PATTERNS = {
+  official: [
+    /通知|报名|申请|讲座|报告会|论坛|会议|答辩|课程|考试|奖助学金|联系人|邮箱|电话/,
+    /教授|院士|学术|研究|成果|发布|开放|启动|招募/
+  ],
+  departments: [
+    /通知|报名|申请|讲座|报告会|论坛|会议|答辩|课程|考试|奖助学金|联系人|邮箱|电话/,
+    /教授|院士|学术|研究|成果|开放|启动|招募/
+  ],
+  jobs: [
+    /招聘会时间|举办地点|岗位|职位|实习|校招|宣讲|任职要求|学历|专业|简历|网申|投递|薪资|工作地点/,
+    /研发|算法|前端|后端|产品|运营|研究员|工程师|助理/
+  ],
+  tech: [
+    /发布|上线|开源|模型|Agent|AI|产品|功能|研究|论文|实验|性能|基准|数据|芯片|平台|生态|成本|效率|推出|更新/i,
+    /融资|天使轮|估值|收入|月活|用户|下载量|盲测|准确率|速度|成本/
+  ]
+};
+const CATEGORY_NEGATIVE_PATTERNS = {
+  official: [
+    /活动现场|合影留念|品牌活动|未来将继续|为.*贡献力量/
+  ],
+  departments: [
+    /活动现场|合影留念|品牌活动|未来将继续|为.*贡献力量/
+  ],
+  jobs: [
+    /公司简介|集团简介|企业介绍|成立于|总部位于|世界500强|上市公司|企业集团|致力于|美好未来|拼尽全力/,
+    /福利|津贴|培训|职业发展路径|股票期权|年终绩效奖金|企业文化/
+  ],
+  tech: [
+    /最近，你的朋友圈|某天深夜|可爱的中文名|读起来|横空出世|故事|刷屏了吗/
+  ]
+};
+const TITLE_KEYWORD_STOPWORDS = new Set([
+  '中国科大',
+  '中国科学技术大学',
+  '通知',
+  '公告',
+  '宣讲会',
+  '校园招聘',
+  '招聘',
+  '发布',
+  '举行',
+  '关于'
+]);
 
 const CATEGORY_DEFS = [
   { key: 'official', file: 'feed-official.json', statsKey: 'officialItems' },
@@ -137,6 +205,165 @@ function truncateText(text, maxLength = 1800) {
   const normalized = String(text || '').trim();
   if (normalized.length <= maxLength) return normalized;
   return `${normalized.slice(0, maxLength).trim()} ...`;
+}
+
+function normalizeSummaryText(text) {
+  return String(text || '')
+    .replace(/[\u200b\ufeff]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function splitIntoSentences(text) {
+  const normalized = normalizeSummaryText(text);
+  if (!normalized) return [];
+
+  const sentences = [];
+  let current = '';
+  for (let index = 0; index < normalized.length; index += 1) {
+    const char = normalized[index];
+    const prev = normalized[index - 1] || '';
+    const next = normalized[index + 1] || '';
+    current += char;
+
+    if (!SUMMARY_BOUNDARY_CHARS.has(char)) {
+      continue;
+    }
+
+    if (char === '.' && /\d/.test(prev) && /\d/.test(next)) {
+      continue;
+    }
+
+    const trimmed = current.trim();
+    if (trimmed) sentences.push(trimmed);
+    current = '';
+  }
+
+  const trailing = current.trim();
+  if (trailing) sentences.push(trailing);
+  return sentences;
+}
+
+function extractTitleKeywords(title) {
+  const matches = normalizeSummaryText(title).match(/[A-Za-z][A-Za-z0-9.+-]{2,}|[\u4e00-\u9fff]{2,}/g) || [];
+  return [...new Set(
+    matches
+      .map(token => token.trim())
+      .filter(token => token.length >= 2 && !TITLE_KEYWORD_STOPWORDS.has(token))
+  )];
+}
+
+function countPatternMatches(text, patterns) {
+  return (patterns || []).reduce((count, pattern) => count + (pattern.test(text) ? 1 : 0), 0);
+}
+
+function scoreSentence(sentence, category, context = {}) {
+  const normalized = normalizeSummaryText(sentence);
+  if (!normalized) return Number.NEGATIVE_INFINITY;
+
+  let score = 0;
+  const length = normalized.length;
+
+  if (length < 12) score -= 4;
+  else if (length < 20) score -= 1;
+  else if (length <= 120) score += 3;
+  else if (length <= 160) score += 1;
+  else if (length > 220) score -= 5;
+  else if (length > 160) score -= 2;
+
+  if (SUMMARY_TIME_REGEX.test(normalized)) score += 5;
+  if (SUMMARY_LOCATION_REGEX.test(normalized)) score += 4;
+  if (SUMMARY_CONTACT_REGEX.test(normalized)) score += 3;
+  if (SUMMARY_METRIC_REGEX.test(normalized)) score += 2;
+
+  score += countPatternMatches(normalized, GENERIC_POSITIVE_PATTERNS) * 2;
+  score += countPatternMatches(normalized, CATEGORY_POSITIVE_PATTERNS[category]) * 3;
+  score -= countPatternMatches(normalized, GENERIC_NEGATIVE_PATTERNS) * 4;
+  score -= countPatternMatches(normalized, CATEGORY_NEGATIVE_PATTERNS[category]) * 5;
+
+  if (context.index === 0) score += 2;
+  else if (context.index === 1) score += 1;
+
+  const matchedTitleKeywords = (context.titleKeywords || []).filter(keyword => normalized.includes(keyword)).length;
+  if (matchedTitleKeywords > 0) {
+    score += Math.min(matchedTitleKeywords, 3) * 2;
+  }
+
+  if (/^[一二三四五六七八九十]+[、.．]/.test(normalized)) score += 1;
+  if (/^(内容简介|公司简介|集团简介|职位信息|任职要求)[：:]/.test(normalized)) score -= 1;
+  if (/^(来源|原文链接|供图|记者|编辑)[：:]/.test(normalized)) score -= 8;
+  if (/值得一提的是|未来将继续|活动现场/.test(normalized)) score -= 4;
+
+  return score;
+}
+
+function buildExtractiveSummary(text, category, title = '') {
+  const normalized = normalizeSummaryText(text);
+  if (!normalized) return '';
+
+  const target = SUMMARY_TARGET_BY_CATEGORY[category] || { min: 200, max: 320 };
+  if (normalized.length < SUMMARY_PASSTHROUGH_MIN_LENGTH) return normalized;
+  if (normalized.length <= target.min && target.min <= SUMMARY_PASSTHROUGH_MIN_LENGTH) return normalized;
+
+  const sentences = splitIntoSentences(normalized);
+  if (sentences.length <= 1) return normalized;
+
+  const titleKeywords = extractTitleKeywords(title);
+  const scoredSentences = sentences.map((sentence, index) => ({
+    index,
+    sentence,
+    length: sentence.length,
+    score: scoreSentence(sentence, category, { index, titleKeywords })
+  }));
+
+  const selected = [];
+  let totalLength = 0;
+  const sortedByScore = [...scoredSentences].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (a.length !== b.length) return a.length - b.length;
+    return a.index - b.index;
+  });
+
+  const minimumScore = category === 'jobs' ? 3 : 2;
+  for (const candidate of sortedByScore) {
+    if (selected.some(entry => entry.index === candidate.index)) continue;
+    if (selected.length > 0 && candidate.score < minimumScore && totalLength >= Math.floor(target.min * 0.6)) continue;
+
+    const nextLength = totalLength + candidate.length;
+    if (selected.length > 0 && totalLength >= target.min && nextLength > target.max) continue;
+
+    selected.push(candidate);
+    totalLength = nextLength;
+
+    if (totalLength >= target.min && selected.length >= 2) {
+      break;
+    }
+  }
+
+  if (selected.length === 0) {
+    selected.push(scoredSentences[0]);
+    totalLength = scoredSentences[0].length;
+  }
+
+  if (totalLength < Math.floor(target.min * 0.8)) {
+    const remaining = scoredSentences
+      .filter(candidate => candidate.score >= minimumScore)
+      .filter(candidate => !selected.some(entry => entry.index === candidate.index))
+      .sort((a, b) => a.index - b.index);
+
+    for (const candidate of remaining) {
+      if (selected.length > 0 && totalLength + candidate.length > target.max + 60) continue;
+      selected.push(candidate);
+      totalLength += candidate.length;
+      if (totalLength >= target.min) break;
+    }
+  }
+
+  return selected
+    .sort((a, b) => a.index - b.index)
+    .map(entry => entry.sentence)
+    .join(' ')
+    .trim();
 }
 
 function escapeRegExp(value) {
@@ -799,7 +1026,7 @@ async function fetchFeedItems(source, state, options) {
       title: cleanTitle(item.title, source.name),
       url: item.url,
       publishedAt: item.publishedAt,
-      summary: item.summary
+      summary: buildExtractiveSummary(item.summary, source.category, item.title)
     });
 
     markSeen(state, uniqueId, options.updateState);
@@ -928,7 +1155,7 @@ async function fetchScrapeItems(source, state, options) {
         title: article.title || cleanTitle(item.title, source.name),
         url: item.url,
         publishedAt: article.publishedAt,
-        summary: article.content
+        summary: buildExtractiveSummary(article.content, source.category, article.title || item.title)
       }
     });
   }
